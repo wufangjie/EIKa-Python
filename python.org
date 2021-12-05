@@ -1,0 +1,749 @@
+#+AUTHOR: wfj
+#+EMAIL: wufangjie1223@126.com
+#+HTML_HEAD_EXTRA: <style type="text/css"> body {padding-left: 21%;} #table-of-contents {position: fixed; width: 20%; height: 100%; top: 0; left: 0; overflow-x: hidden; overflow-y: scroll;} </style>
+#+OPTIONS: ^:{} \n:t email:t
+* pythonic
+** with
+*** with protocol
+用法和例子
+| 详见 * pythonic ** magitc methods *** with protocol |
+| 详见 * packages ** mysql-connector-python-rf        |
+
+*** contextlib
+直接看源代码
+| contextmanager |                                        |
+| closing        | 要有 .close 属性                       |
+| suppress       | 用来忽略异常, 参数是异常或异常的迭代器 |
+contextmanager 装饰只 yield 一次的 generator, 进行分上下文处理,\\
+只是好像用作装饰器的时候 args 和 kwds 没法用?\\
+urllib.request.urlopen 竟然不会在退出时关闭, 看了官网的例子才明白\\
+
+** decorator
+In Python, decorators are, in simplest terms, functions (or any callable objects) that take as input a set of optional arguments and a function or class, and return a function or class\\
+以函数为参数返回一个新的函数的装饰器, 新函数的 __name__, __doc__, __annotations__ 等一些属性会是新函数的, 一般使用 functools.wraps 来解决这个问题, 也可以自己简单实现如下:
+#+BEGIN_SRC python
+def my_wrap(func):
+    def func3(func2):
+        func2.__name__ = func.__name__
+        func2.__doc__ = func.__doc__
+        func2.__annotations__ = func.__annotations__
+        func2.__wrapped__ = func
+        return func2
+    return func3
+#+END_SRC
+注意 __wrapped__, 更高级的用法需要研究 descriptor protocol
+
+** magic methods
+*** iterator protocol
+Python’s iterator protocol requires __iter__() to return a special iterator object that implements a __next__() operation and uses a StopIteration exception to signal
+completion.\\
+特别地, __iter__() 返回一个 generator
+#+BEGIN_SRC python
+class ListNode(object):
+    def __init__(self, x, next=None):
+        self.val = x
+        self.next = next
+
+    def __iter__(self):
+        node = self
+        while node:
+            yield node
+            node = node.next
+
+a = ListNode(1, ListNode(2, ListNode(3)))
+for node in a:
+    print(node.val)
+#+END_SRC
+
+*** with protocol
+自定义实现了 __enter__ and __exit__ 的类, 分别用于进入和退出时的操作
+
+*** __getattribute__, __getattr__, __setattr__, __delattr__, getattr, setattr, setattr
+Attribute assignments and deletions update the instance’s dictionary, never a class’s dictionary. If the class has a __setattr__() or __delattr__() method, this is called instead of updating the instance dictionary directly. (类的成员只能通过直接赋值或 del? 应该不会这么做)\\
+getattr 调用的是 __getattribute__\\
+__getattribute__ 在访问属性的时候都会被调用, 为了防止递归调用, 都用会调用基类或 object (新式类) 的 __getattribute__\\
+__getattr__ 只会在 __getattribute__ (如果没有重定义) 抛出 AttributeError 被调用, (如果有定义的话)\\
+
+*** descriptor protocol
+| descr.__get__(self, obj, type=None) --> value |
+| descr.__set__(self, obj, value) --> None      |
+| descr.__delete__(self, obj) --> None          |
+摘自官方文档 howto-descriptor\\
+The default behavior for attribute access is to get, set, or delete the attribute from an object's dictionary. For instance, a.x has a lookup chain starting with a.__dict__['x'], then type(a).__dict__['x'], and continuing through the base classes of type(a) excluding metaclasses. If the looked-up value is an object defining one of the descriptor methods, then Python may override the default behavior and invoke the descriptor method instead.\\
+Descriptors are a powerful, general purpose protocol. They are the mechanism behind properties, methods, static methods, class methods, and super().\\
+我的理解是 descriptor 的对象是作为类的属性 (具体地说是在类的 __dict__ 中, 注意是类而不是对象) 存在, 基本不在别处使用, 除非手动调用 a.__get__(a, type(a))\\
+根据 __get__, __set__, __delete__ 设置的不同, 分为 non-data descriptor (no __set__), data descriptor (特别地, read-only data descriptor)\\
+**** 实际调用过程
+#+BEGIN_SRC python
+type(b).__dict__['x'].__get__(b, type(b)) # b.x
+B.__dict__['x'].__get__(None, B) # B.x
+# note b.x = other, del b.x do not call magic methods
+#+END_SRC
+type.__getattribute__ 的一种实现方式, 如下:
+#+BEGIN_SRC python
+def __getattribute__(self, key):
+    v = object.__getattribute__(self, key)
+    if hasattr(v, '__get__'):
+        return v.__get__(None, self)
+    return v
+#+END_SRC
+这里就有一个先有鸡还是现有蛋的哲学问题了
+
+**** 重点说明
+1. descriptors are invoked by the __getattribute__() method
+2. overriding __getattribute__() prevents automatic descriptor calls
+3. object.__getattribute__() and type.__getattribute__() make different calls to __get__().
+4. data descriptors always override instance dictionaries.
+5. non-data descriptors may be overridden by instance dictionaries.
+
+其中, 45点还是不明白, 与做实验的结果不符, 也许没完全领会, 以后再说
+
+**** 先看一下这些函数的基本运作方式
+#+BEGIN_SRC python
+class Des:
+    def __init__(self, x):
+        self.x = x
+
+    def __get__(self, obj, type):
+        print('get:\nself={},\nobj={},\ntype={}'.format(self, obj, type))
+        return self.x
+
+    def __set__(self, obj, value):
+        print('set:\nself={},\nobj={},\nvalue={}'.format(self, obj, value))
+        self.x = value
+
+    def __delete__(self, obj):
+        print('del:\nself={},\nobj={}'.format(self, obj))
+
+class UseDes:
+    d = Des('hello')
+
+a = UseDes()
+UseDes.d
+a.d
+a.d = 'world' # UseDes.d changed to 'world'
+del a.d
+# set or delete UseDes.d did not call the magic methods
+#+END_SRC
+
+**** property
+#+BEGIN_SRC python
+property(fget=None, fset=None, fdel=None, doc=None) -> property attribute
+#+END_SRC
+getter, setter, deleter 是装饰器, 接受函数参数来给所属的对象的对应属性赋值, 返回一个修改过的对象
+#+BEGIN_SRC python
+class MyProperty:
+    def __init__(self, fget=None, fset=None, fdel=None):
+        self.fget = fget
+        self.fset = fset
+        self.fdel = fdel
+
+    def __get__(self, obj, type=None):
+        if obj is None:
+            return self
+        elif self.fget is None:
+            raise AttributeError('cannot read')
+        return self.fget(obj)
+
+    def __set__(self, obj, value):
+        if self.fset is None:
+            raise AttributeError('cannot assign')
+        self.fset(obj, value)
+
+    def __delete__(self, obj):
+        if self.fdel is None:
+            raise AttributeError('cannot delete')
+        self.fdel(obj)
+
+    def getter(self, fget):
+        self.fget = fget
+        return self
+
+    def setter(self, fset):
+        self.fset = fset
+        return self
+
+    def deleter(self, fdel):
+        self.fdel = fdel
+        return self
+#+END_SRC
+NOTE: 跟 property 的实现还是有区别的, 出现在被修饰的函数名不同时, 我的实现是前一个是最终结果, 而官方版本实现的是后一个是最终结果, (虽然不同名的不对的, 但也能看出一些东西)
+
+**** methods, class methods, static methods
+#+BEGIN_SRC python
+# 以下都是可以当作装饰器使用的, 使得普通的函数变成类的函数, 只是为了方便理解
+# python 定义在类中的 function 就直接是 method 了, 官方说明是 types.MethodType
+# 即手动定义了一个最简单的 method, 再 type(metod), 用了绑定函数
+class Method:
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, obj, type=None):
+        if obj is None:
+            return self.f
+        def newfunc(*args, **kwargs):
+            return self.f(obj, *args, **kwargs)
+        return newfunc
+
+class ClassMethod:
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, obj, klass=None):
+        if klass is None:
+            klass = type(obj)
+        def newfunc(*args, **kwargs):
+            return self.f(klass, *args, **kwargs)
+        return newfunc
+
+class StaticMethod:
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, obj, type=None):
+        return self.f
+#+END_SRC
+
+*** super
+python 官方一直在改, 有很多不确定的东西, 有时间再深入了解
+#+BEGIN_SRC python
+class A:
+    def test(self):
+        print('hello super', self.__class__)
+
+class B(A):
+    def test(self):
+        print('hello super changed', self.__class__)
+
+    def test1(self):
+        return super()
+
+    def test2(self):
+        return super(__class__)
+
+    def test3(self):
+        return super(__class__, self)
+
+    def test4(self):
+        return super(__class__, __class__)
+
+
+obj = B()
+b1, b2, b3, b4 = obj.test1(), obj.test2(), obj.test3(), obj.test4()
+# 我的实验和理解 super 就是派生类以 (它的实例或本身) 访问基类的方式
+# super() same as super(__class__, <first argument>)
+b1.test()
+b2.test() # AttributeError: 'super' object has no attribute 'test', very little used
+b3.test()
+b4.test(obj) # hello super <class '__main__.B'>
+obj.test() # hello super changed <class '__main__.B'>
+#+END_SRC
+
+*** __new__
+__new__() is a static method (special-cased so you need not declare it as such) that takes the class of which an instance was requested as its first argument.
+
+*** others
+| in       | __contains__      |                                 |
+| len      | __len__           |                                 |
+| reversed | __reversed__      |                                 |
+| next     | __next__          |                                 |
+| str      | __str__           |                                 |
+| repr     | __repr__          |                                 |
+| bool     | __bool__          |                                 |
+| hash     | __hash__          |                                 |
+| dir      | __dir__           |                                 |
+|          | __sizeof__        | sys.getsizeof = __sizeof__ + gc |
+|----------+-------------------+---------------------------------|
+|          | __dict__          | 是属性, 不是函数, 详见 class    |
+|          | __doc__           |                                 |
+|          | __init__          |                                 |
+|          | __new__           | low-level, 一般不手动调用       |
+| type?    | __class__         |                                 |
+|          | __subclasshook__  |                                 |
+|----------+-------------------+---------------------------------|
+|          | __delattr__       | attr 相关函数中不要使用自身     |
+|          | __getattr__       | 属性不存在时, 才会起作用        |
+|          | __getattribute__  |                                 |
+|          | __setattr__       |                                 |
+|          | __delitem__       |                                 |
+|          | __getitem__       |                                 |
+|          | __setitem__       |                                 |
+|----------+-------------------+---------------------------------|
+|          | eq ge gt le lt ne |                                 |
+|          | 其他数学逻辑函数  |                                 |
+|----------+-------------------+---------------------------------|
+|          | __format__        | 一般都用字符串现成的            |
+|          | __copy__          |                                 |
+|          | __deepcopy__      |                                 |
+|          | __reduce__        | helper for pickle               |
+|          | __reduce_ex__     | helper for pickle               |
+|----------+-------------------+---------------------------------|
+|          | __file__          | 非对象                          |
+|          | __name__          |                                 |
+
+** 合理使用 generator 和 yield [from], 而不是各种 comprehension
+() 和 [] 的区别, 少占内存效率会高一些, 如果有 break 就高更多
+
+** sorted 的稳定性
+In early python-versions, the sort function implemented a modified version of quicksort. However, it was deemed unstable and as of 2.3 they switched to using an adaptive mergesort algorithm.
+
+** 特殊类型判断
+1. isinstance 结合 collections 模块
+2. issubclass
+3. hasattr
+4. callable
+
+** speed up tips
++ dict 和 set 都是 hashtable 实现的, 查找元素的时间复杂度是O(1)
++ 使用 if is True 比 if == True 快很多
++ while 1 比 while True 更快 (仅限python2), 因为 True 是一个全局变量, 而非关键字
++ 使用 ** 而不是 pow, 约 10 倍
++ list 的删除是费时的, 如果不介意顺序, 可以把尾部的元素赋值给要删除的位置, 再 pop
+
+** others
+1. star expression 其实只需要是 iterator 就能 unpack
+2. coding style (pep8)
+
+** donot
+*** 不要把不需要重复计算的部分放到 comprehension 中, 跟平常的代码是一样的, 不会优化
+#+BEGIN_SRC python
+import time
+tic = time.time()
+dct = {i: i for i in range(1000)}
+n = 10
+for _ in range(1000):
+    d = [k for k, v in dct.items() if v == max(dct.values())]
+print(time.time() - tic) # about 16.7s
+tic = time.time()
+for _ in range(1000):
+    theMax = max(dct.values())
+    d = [k for k, v in dct.items() if v == theMax]
+print(time.time() - tic) # about 0.06s
+#+END_SRC
+
+** progress bar
+#+BEGIN_SRC python
+class ProgressBar:
+    def __init__(self, length=35, status=None):
+        if status is None:
+            self.status = (
+                [chr(9615)] + ['\b' + chr(i) for i in range(9614, 9607, -1)])
+        self.ns = len(self.status)
+        self.length = length * self.ns - 1
+        self.cursor = -1
+        print('|', end='', flush=True)
+
+    def moveto(self, percent):
+        superior = round(percent * self.length)
+        while self.cursor < superior:
+            self.cursor += 1
+            print(self.status[self.cursor % self.ns], end='', flush=True)
+        if percent == 1:
+            print('|', flush=True)
+
+
+if __name__ == '__main__':
+    pb = ProgressBar()
+    import time
+    for k in range(100):
+        pb.moveto((k + 1) / 100)
+        time.sleep(0.1)
+#+END_SRC
+
+** unpark tuple trap
+#+BEGIN_SRC python
+from utils import ListNode
+a = ListNode('a')
+b = ListNode('b', a)
+c = ListNode('c', b)
+# a, b, c, c.next, b.next = b, c, a, b.next, a.next # 1
+# from left to right, c.next's c is ('a')
+c.next, b.next, a, b, c = b.next, a.next, b, c, a # 2
+
+print(*map(lambda x: x.next, [a, b, c]), sep='\n')
+# 1 show not all assignment happened together
+
+# 1
+# ListNode(val = a)
+# None
+# ListNode(val = a)
+
+# 2
+# None
+# ListNode(val = a)
+# None
+#+END_SRC
+
+** __getitem__
+别人的解法, 很惊艳, 但我的根据 sorted matrix 的方法更具有普遍性, 不仅仅是乘法表, 别人的解法, 对于乘法表可以减少一定的计算量, 所以会比我的快不少
+#+BEGIN_SRC python
+# leetcode 668. Kth Smallest Number in Multiplication Table
+class Solution(object):
+    def findKthNumber(self, m, n, k):
+        """
+        :type m: int
+        :type n: int
+        :type k: int
+        :rtype: int
+        """
+        if m > n:
+            m, n = n, m
+        class foo(object):
+            d = {}
+            def __getitem__(self, k):
+                if k not in self.d:
+                    self.d[k] = k // n * n
+                    for i in range(k // n, min(m, k)):
+                        self.d[k] += k // (i + 1)
+                return self.d[k]
+        return bisect.bisect_left(foo(), k, 1, m * n + 1)
+#+END_SRC
+
+* data structure and algorithm
+| list              |
+| dict              |
+| map               |
+| set               |
+| collections.deque |
+| heapq             |
+
+** about binary search
+#+BEGIN_SRC python
+hi = len(seq) # not -1, otherwise seq[-1] may not be compared
+while lo < hi:
+    mid = (lo + hi) >> 1
+    # ...
+    if find:
+        return mid
+    elif some_condition:
+        lo = mid + 1 # always mid + 1, otherwise may be endless loop
+    else:
+        hi = mid # - 1 # may be just mid
+#+END_SRC
+
+** sorted matrix 的一些算法很惊艳, 可惜构造略麻烦, 还是不实用
+比如查找算法, 从右上到左下, O(n)
+比如求 kth 个元素, 可以用二分查找, 利用上述查找算法, 获取元素的排序位置, 然后缩小一半的范围查找; 如果用堆的话, 其实有一个方向上有序的条件没有用到
+
+** bitwise
+#+BEGIN_SRC python
+a >> 1 # a // 2
+a << 2 # a * 4
+a & 1  # a % 2 == 1
+a ^ a == 0
+# | ~ >>= <<= &= ^= |=
+#+END_SRC
+
+* python
+** 变量空间
+| globals                   |
+| locals                    |
+| sys._getframe().f_globals |
+| sys._getframe().f_locals  |
+
+** frozenset
+frozenset() -> empty frozenset object
+frozenset(iterable) -> frozenset object
+不可变集合, 无序, 有 hash 值, 用法之一 utils.memo_with_kwargs
+
+** class
++ if an object does not have a __dict__, then you can’t assign arbitrary attributes to it.
++ 类变量直接写在类中 (保存在类的 __dict__ 中), 而实例变量的赋值一般写在实例方法中 self.xx (保存在对象的 __dict__ 中)
++ staticmethod, 可以类调用, 也可以实例调用, 第一个参数为 cls
++ classmethod, 可以类调用, 也可以实例调用, 用法同类外函数
++ property, 详见 descriptor protocol
+
+** scope
+0. dynamic scoping 与 lexical scoping 的区别, 其实就是运行时上下文和定义时上下文, 详见 <王垠：Lisp 已死，Lisp 万岁！>
+1. python 的变量如果没有声明 global 或 nonlocal, 那么该变量为局部变量, 如果变量没有在该层被赋值 (否则为普通的局部变量, 不能影响上层变量) 那么会逐层向上寻找绑定
+2. 如果在为局部变量赋值之前引用了该变量, python 会抛出 UnboundLocalError: local variable 'x' referenced before assignment
+3. nonlocal 会从该层开始逐层向上 (除顶层) 寻找绑定, 如果没有找到, python 会抛出 SyntaxError: no binding for nonlocal 'x' found
+4. global 会直接找顶层的绑定, 如果没有, python 会抛出 NameError: name 'x' is not defined
+5. 绑定是引用
+6. 可以通过 __closure__ 显式获取绑定的值, 如下:
+   #+BEGIN_SRC python
+def f1():
+    x = 3
+    def f2():
+        nonlocal x
+        x = 2
+    return f2
+
+ff = f1()
+print([c.cell_contents for c in ff.__closure__])
+ff()
+print([c.cell_contents for c in ff.__closure__])
+   #+END_SRC
+
+** put string, unicode and integer together
+直接在解释器或用 print 都可以打印出 '\uXXXX' 对应的字体显示\\
+'\uXXXX' 是 unicode 的序号, 是连续的, python3 实现了 \u 转义, 即以其后面四位为 unicode 码的字符; 而二进制的存储 (不同的编码, 有不同的规则, 不一定连续) 不经过 decode 是没法显示的\\
+各种进制的整数,
+| 0b11, 0o11, 0x11  | (3, 9, 17) |
+| b o x             | format     |
+| bin() oct() hex() |            |
+| int(x, base=10)   |            |
+https://docs.python.org/3/library/string.html#formatspec
+
+chr 函数接受一个整数返回字符, python2 要用 unichr
+#+BEGIN_SRC python
+for i in range(0x4e00, 0x9fa6, 40):
+    print(''.join(chr(j) for j in range(i, i + 40)))
+# NOTE: 这段代码在 emacs -nw 比 gui 快多了, 这种输出比较多的还是用 -nw 运行
+#+END_SRC
+jieba 这个包里是到 0x9fd5, 但是后面的字体明显不等宽, 我觉得不是中文字\\
+
+* modules
+** asyncio and async / await
+(普通函数, 生成器函数, 异步函数, 异步生成器函数)\\
+跟生成器一样, 异步函数也是通过 ret.send(None) 来驱动, 而且正常返回时也会抛出一个 StopIteration 异常, 并把返回值保存在 StopIteration 对象的 value 属性中\\
+await 只能出现在 async 修饰的函数中, 进一步后面必须要跟 Awaitable, 其作用是挂起自身等待 Awaitable 返回后继续\\
+用 @asyncio.coroutine 或 @types.coroutine 可以装饰生成器为协程\\
+一般会用 asyncio 库的事件循环来调度:
+#+BEGIN_SRC python
+loop = asyncio.get_event_loop()
+loop.run_until_complete(something)
+#+END_SRC
+
+** concurrent.futures
+#+BEGIN_SRC python
+import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+# 感觉 as_completed 的唯一作用就是知道各个部分的大致完成先后顺序
+
+
+
+n = 10
+
+
+def output(i):
+    with open('{}.txt'.format(i), 'wt') as f:
+        for j in range(10000):
+            f.write('{}\n'.format(i + j))
+
+
+async def output_async(i):
+    with open('{}.txt'.format(i), 'wt') as f:
+        for j in range(10000):
+            f.write('{}\n'.format(i + j))
+
+
+
+time_points = [time.time()]
+
+
+for i in range(n):
+    output(i)
+time_points.append(time.time())
+
+
+async def main():
+    await asyncio.wait([output_async(n + i) for i in range(n)])
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+time_points.append(time.time())
+
+
+with ThreadPoolExecutor() as pool:
+    for i in range(n):
+        pool.submit(output, 2 * n + i)
+time_points.append(time.time())
+
+
+with ProcessPoolExecutor() as pool:
+    for i in range(n):
+        pool.submit(output, 3 * n + i)
+time_points.append(time.time())
+
+
+for i, t in enumerate(['origin', 'async', 'multi-thread', 'multi-process']):
+    print('{}: cost {}s'.format(t, time_points[i + 1] - time_points[i]))
+
+
+# origin: cost 0.09283709526062012s
+# async: cost 0.03890538215637207s
+# multi-thread: cost 0.04110264778137207s
+# multi-process: cost 0.027208805084228516s
+
+# Executor 的 map 方法和通过 loop
+lst = [8, 4, 2, 6, 5, 1, 3, 9, 7]
+with ThreadPoolExecutor() as pool:
+    result = pool.map(lambda x: x ** 2, lst)
+print(list(result))
+result = []
+with ThreadPoolExecutor() as pool:
+    for i in lst:
+        result.append(pool.submit(lambda x: x ** 2, i))
+print([feature.result() for feature in result])
+#+END_SRC
+
+** collections
+| deque       |                         |
+| Counter     |                         |
+| defaultdict |                         |
+|-------------+-------------------------|
+| Hashable    | isinstance 的第二个参数 |
+| Callable    |                         |
+| Iterable    |                         |
+| Sized       | __len__                 |
+|             |                         |
+|             |                         |
+|             |                         |
+|             |                         |
+|-------------+-------------------------|
+| OrderedDict | 我基本不用              |
+| nametuple   |                         |
+| ChainMap    |                         |
+
+** gc (garbage collection)
+有时可能会产生反效果, 慎用
+#+BEGIN_SRC python
+import gc
+del xx
+gc.collect()
+#+END_SRC
+
+** importlib
+每个 python interpreter 只会导入模块一次, 修改了模块就需要手动重新导入, 如下:\\
+(早期版本可以用 imp, 现在 deprecated)
+#+BEGIN_SRC python
+import importlib
+importlib.reload(package_name)
+#+END_SRC
+如果是通过 from 导入的, 需要如下操作
+#+BEGIN_SRC python
+import importlib
+import package_name  # if exist, ignore
+importlib.reload(package_name)
+# reexecute from clause
+#+END_SRC
+
+** cProfile profile
+#+BEGIN_SRC python
+python3 -m cProfile someprogram.py
+#+END_SRC
+
+** re
+use raw string
+| compile |
+| search  |
+| match   |
+| findall |
+| sub     |
+
+** timeit
+#+BEGIN_SRC python
+t = timeit.Timer(stmt='pass', setup='pass',
+                 timer=time.perf_counter, number=1000000, globals=None)
+t.timeit(number=1000000)
+t.repeat(repeat=3, number=1000000)
+#+END_SRC
+语句用 ''' 括起来就行, 不要出现 _t0, _t1, _timer, _i 等变量即可\\
+timer 在 linux 下, 默认是 time.time()\\
+globals 可需要用默认的 None, globals() 或 locals()
+
+** warnings
+#+BEGIN_SRC python
+import warnings
+
+with warnings.catch_warnings(record=True) as w:
+    np.array([1, 2, 3, 4, 5]) / np.array([0, 2, 0, 4, 8])
+    print(w[0].__dict__)
+    import pdb
+    pdb.set_trace()
+    print('hello warning!')
+
+warnings.filterwarnings("ignore", category=np.RuntimeWarning, message="divide by zero encountered in true_divide")
+#+END_SRC
+#+BEGIN_SRC python
+raise SomeWarning # actually generating error use
+warnings.warn(message, category=None, stacklevel=1, source=None)
+#+END_SRC
+
+** others
+| itertools     |
+| functools     |
+| operator      |
+| pdb           |
+| heapq         |
+| datetime      |
+| pprint        |
+| os            |
+| sys           |
+| pickle        |
+| csv           |
+| time          |
+| urllib        |
+| json          |
+| random        |
+| math          |
+| site          |
+|---------------|
+| threading     |
+| subprocessing |
+| logging       |
+| ctypes        |
+
+* packages (一些文档里找不到或很难找到的 tricks)
+** mysql-connector-python-rf
+#+BEGIN_SRC python
+import mysql.connector
+
+class ConnectMysqlGetCursor:
+    def __init__(self, database='*',
+                 user='*', password='*', host='*',
+                 port=3306, raise_on_warnings=True, autocommit=True, **kwargs):
+        self.params = locals()
+        self.params.pop('self')
+        self.params.pop('kwargs')
+        self.params.update(kwargs)
+
+    def __enter__(self):
+        self.conn = mysql.connector.connect(**self.params)
+        self.cursor = self.conn.cursor()
+        return self.cursor
+
+    def __exit__(self, *args):
+        self.cursor.close()
+        self.conn.close()
+
+# usage
+with ConnectMysqlCetCursor() as cursor:
+    cursor.execute('''
+    some sql
+    ''')
+    # then treat cursor as an iterator
+#+END_SRC
+
+插入数据, 最好是自己用数据创建整条 sql 语句, 再执行, 速度快, 易控制
+#+BEGIN_SRC python
+def gen_data_str(data, template):
+    template = '(' + ','.join(['{}'] * 3) + ')'
+    for item in data:
+        yield .format(**item)
+#+END_SRC
+
+** jieba
+BEMS: begin end middle single, 词的构成\\
++照理, 训练出来的初始状态, 转移矩阵的和 (或行和) 应该等于 1 才对, 不知道为什么, jieba 给出的值都是负数+ jieba 给出的是 ln 过后的值, 好处是化乘法为加法达到加速效果\\
+DAG, route 既然都是用 index 取索引, 用 list 效率应该会比 map 高不少
+
+** numpy
+use &, |, ~ instead of np.logical_and, np.logical_or, np.logical_not, I forgot these three are binary operators sometimes.
+
+#+BEGIN_SRC python
+a = 0x39342B42A09A554260657B429CC4884227F1914285EB984258B99D42CF77A142A285A342D538A542FABEA6424EE2A742B0B2A8427593A942508DAA422DF2AA42F853AB42E5D0AB420C42AC42E77BAC427BD4AC42FAFEAC427513AD42D94EAD421D9AAD4264FBAD42E77BAE4275D3AE422D32AF42CF37AF4202ABAF429E6FB0426FD2B042852BB14279A9B14219C4B14237C9B142CDCCB14298AEB1421F85B1421F85B1421F85B1421F85B142
+print(np.frombuffer(a.to_bytes(43*4, 'big'), dtype=np.float32))
+#+END_SRC
+
+** seaborn
+#+BEGIN_SRC python
+class Dummy_sns:
+    def __getattribute__(self, key):
+        return super().__getattribute__('__dummy__')
+
+    def __dummy__(self, *args, **kwargs):
+        return self
+#+END_SRC
