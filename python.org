@@ -739,3 +739,13 @@ class Dummy_sns:
     def __dummy__(self, *args, **kwargs):
         return self
 #+END_SRC
+** virtualenv
+#+BEGIN_SRC sh
+virtualenv temp_env --system-site-packages 参数
+#+END_SRC
+
+在 M-x term RET 模式下, 运行 (eshell 不是 functional 的, 所以不行, 会报错: Missing redirection target)
+
+#+BEGIN_SRC sh
+source temp_env/bin/activate
+#+END_SRC
