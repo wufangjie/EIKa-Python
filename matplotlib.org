@@ -1,0 +1,151 @@
+* matplotlib
+** In the following sections, we will always import like this
+#+BEGIN_SRC python
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+#+END_SRC
+
+** display
+*** interactive mode (recommend)
+#+BEGIN_SRC python
+plt.ion() # on
+plt.ioff() # off
+plt.isinteractive() # if
+#+END_SRC
+
+*** show and redraw
+- plt.show() will display all open figures
+- fig.show() only display the fig
+- plt.pause()
+
+#+BEGIN_SRC python
+fig = plt.figure(figsize=(16, 10))
+fig.show()
+
+fig.canvas.draw() # redraw, no need now, just use show()
+#+END_SRC
+
+** figure
+#+BEGIN_SRC python
+fig = plt.figure() # Create a new figure with no Axes
+fig = plt.gcf() # Get the current figure.
+
+fig.add_axes()
+fig.add_subplot()
+#+END_SRC
+
+** axes(much like subplot)
+*** plt.axes()
+Add an axes to the current figure and make it the current axes
+
+Call signatures::
+    plt.axes() # subplot(111)
+    plt.axes(rect, projection=None, polar=False, **kwargs)
+    plt.axes(ax)
+
+rect: [left, bottom, width, height] # NOTE: 0.0 ~ 1.0
+projection: 'polar', '3d'
+
+*** plt.subplot() (可以理解为特殊的(平铺) axes)
+Add a subplot to the current figure.
+
+Call signatures::
+    subplot(nrows, ncols, index, **kwargs)
+    subplot(pos, **kwargs)
+    subplot(ax)
+
+return ax
+
+*** plt.subplots()
+Create a figure and a set of subplots.
+
+#+BEGIN_SRC python
+fig, ax = plt.subplots()
+fig, axes = plt.subplots(2, 3)
+
+axes[0, 0]
+axes[0][0]
+#+END_SRC
+
+*** plt.gca()
+Get the current axes
+#+BEGIN_SRC python
+plt.gca(projection='polar')
+#+END_SRC
+If the current axes doesn't exist, or isn't a polar one, the appropriate axes will be created and then returned.
+
+*** plt.delaxes(ax=None)
+*** fig's methods
+fig.add_axes() # just like plt.axes()
+fig.add_subplot() # just like plt.subplot()
+fig.subplots() # just like plt.subplots(), but only return axes
+
+** axis
+#+BEGIN_SRC python
+plt.axis('equal')
+#+END_SRC
+return: (xmin, xmax, ymin, ymax)
+[xmin, xmax, ymin, ymax], 'on', 'off', 'equal', 'tight', 'auto'
+TODO: 'scaled', 'square'
+
+** ax.set()
+ax.set() can set following attributes together, if you set rcParams
+| title       | plt.title       | ax.set_title       |
+| xlabel      | plt.xlabel      | ax.set_xlabel      |
+| xticklabels | plt.xticklabels | ax.set_xticklabels |
+| xticks      | plt.xticks      | ax.set_xticks      |
+
+** other (axes's) objects
+*** marker
+*** legend
+其字体设置和别的如 title 等用 FontProperties 不同, 用的是 prop
+
+*** grid # ax.grid(b=None, which='major', axis='both', **kwargs)
+*** frame # ax.set_frame_on(b)
+*** spine # ax.spines
+#+BEGIN_SRC python
+sp_dcts = ax.spines
+left = sp_dcts['left']
+#+END_SRC
+
+left.set_visible(b) # bool
+left.set_color(c) # reference plt.plot rgbcmykw, '#000000'
+left.set_linestyle(ls) # reference plt.plot
+
+** pyplot
+label 参数, 之后的 legend() 就不用指定了, 也不会在顺序上出错
+plt.annotate
+
+** rcParams
+rc means run configuration
+
+axes.prop_cycle
+figsize
+font
+
+#+BEGIN_SRC
+plt.rcParams.update(dct)
+#+END_SRC
+
+** 3D
+#+BEGIN_SRC python
+from mpl_toolkits.mplot3d import Axes3D
+
+ax = plt.axes(projection='3d')
+ax.plot_surface()
+ax.plot_wireframe()
+ax.plot_surface()
+
+#+END_SRC
+
+** markersize
+** special plot
+hist
+bar
+barh
+pie
+polar
+
+有的则是会新建一张图 (不能绑定到 f, 需要特定的对象, 即不能用 f.show())
+** patch
+** plt.setp
