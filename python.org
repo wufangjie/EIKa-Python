@@ -1,7 +1,69 @@
 #+AUTHOR: wfj
 #+EMAIL: wufangjie1223@126.com
-#+HTML_HEAD_EXTRA: <style type="text/css"> body {padding-left: 21%;} #table-of-contents {position: fixed; width: 20%; height: 100%; top: 0; left: 0; overflow-x: hidden; overflow-y: scroll;} </style>
 #+OPTIONS: ^:{} \n:t email:t
+#+HTML_HEAD_EXTRA: <style type="text/css"> body {padding-left: 26%; background: #e3edcd;} #table-of-contents {position: fixed; width: 25%; height: 100%; top: 0; left: 0; overflow-y: scroll; resize: horizontal;} i {color: #666666;} pre, pre.src:before {color: #ffffff; background: #131926;} </style>
+#+HTML_HEAD_EXTRA: <script type="text/javascript"> function adjust_html(){document.getElementsByTagName("body")[0].style.cssText="padding-left: "+(parseInt(document.getElementById("table-of-contents").style.width)+5)+"px; background: #e3edcd;"}; window.onload=function(){document.getElementById("table-of-contents").addEventListener("mouseup",adjust_html,true)}</script>
+
+* 学习框架
+** 变量 (Variable)
+*** 作用域 (scope)
+** 表达式 (Expression)
+*** 赋值
+*** 算术
+*** 逻辑
+*** bitwise
+#+BEGIN_SRC python
+a >> 1 # a // 2
+a << 2 # a * 4
+a & 1  # a % 2 == 1
+a ^ a == 0
+# | ~ >>= <<= &= ^= |=
+#+END_SRC
+
+** 控制流 (Control Flow)
+** 函数 (Function)
+*** first level
+*** 递归
+** 数据结构 (Data Structure)
+*** 列表 (list)
+*** 字典 (dict)
+*** 集合 (set)
+*** 队列 (deque)
+*** 堆 (heap)
+** 类 (Class)
++ if an object does not have a __dict__, then you can’t assign arbitrary attributes to it.
++ 类变量直接写在类中 (保存在类的 __dict__ 中), 而实例变量的赋值一般写在实例方法中 self.xx (保存在对象的 __dict__ 中)
++ classmethod, 可以类调用, 也可以实例调用, 第一个参数为 cls
++ staticmethod, 可以类调用, 也可以实例调用, 用法同类外函数
++ property, 详见 descriptor protocol
+
+** Advanced
+*** 迭代器 (iterator)
+itertools
+[..]
+
+*** 生成器 (generator)
+yield [from]
+(..)
+
+*** 装饰器 (decorator)
+functools
+@
+
+** 模块和包 (module and package)
+*** re
+** 算法
+*** growth of function
+*** sort
+*** 时间复杂度
+*** 空间复杂度
+*** 稳定性
+*** divide and conquer
+binary search always use lo <= hi
+
+*** greed is good
+*** dyanamic programming
+*** graph algorithm
 * pythonic
 ** with
 *** with protocol
@@ -14,12 +76,12 @@
 | contextmanager |                                        |
 | closing        | 要有 .close 属性                       |
 | suppress       | 用来忽略异常, 参数是异常或异常的迭代器 |
-contextmanager 装饰只 yield 一次的 generator, 进行分上下文处理,\\
-只是好像用作装饰器的时候 args 和 kwds 没法用?\\
-urllib.request.urlopen 竟然不会在退出时关闭, 看了官网的例子才明白\\
+contextmanager 装饰只 yield 一次的 generator, 进行分上下文处理,
+只是好像用作装饰器的时候 args 和 kwds 没法用?
+urllib.request.urlopen 竟然不会在退出时关闭, 看了官网的例子才明白
 
 ** decorator
-In Python, decorators are, in simplest terms, functions (or any callable objects) that take as input a set of optional arguments and a function or class, and return a function or class\\
+In Python, decorators are, in simplest terms, functions (or any callable objects) that take as input a set of optional arguments and a function or class, and return a function or class
 以函数为参数返回一个新的函数的装饰器, 新函数的 __name__, __doc__, __annotations__ 等一些属性会是新函数的, 一般使用 functools.wraps 来解决这个问题, 也可以自己简单实现如下:
 #+BEGIN_SRC python
 def my_wrap(func):
@@ -36,7 +98,7 @@ def my_wrap(func):
 ** magic methods
 *** iterator protocol
 Python’s iterator protocol requires __iter__() to return a special iterator object that implements a __next__() operation and uses a StopIteration exception to signal
-completion.\\
+completion.
 特别地, __iter__() 返回一个 generator
 #+BEGIN_SRC python
 class ListNode(object):
@@ -59,20 +121,20 @@ for node in a:
 自定义实现了 __enter__ and __exit__ 的类, 分别用于进入和退出时的操作
 
 *** __getattribute__, __getattr__, __setattr__, __delattr__, getattr, setattr, setattr
-Attribute assignments and deletions update the instance’s dictionary, never a class’s dictionary. If the class has a __setattr__() or __delattr__() method, this is called instead of updating the instance dictionary directly. (类的成员只能通过直接赋值或 del? 应该不会这么做)\\
-getattr 调用的是 __getattribute__\\
-__getattribute__ 在访问属性的时候都会被调用, 为了防止递归调用, 都用会调用基类或 object (新式类) 的 __getattribute__\\
-__getattr__ 只会在 __getattribute__ (如果没有重定义) 抛出 AttributeError 被调用, (如果有定义的话)\\
+Attribute assignments and deletions update the instance’s dictionary, never a class’s dictionary. If the class has a __setattr__() or __delattr__() method, this is called instead of updating the instance dictionary directly. (类的成员只能通过直接赋值或 del? 应该不会这么做)
+getattr 调用的是 __getattribute__
+__getattribute__ 在访问属性的时候都会被调用, 为了防止递归调用, 都用会调用基类或 object (新式类) 的 __getattribute__
+__getattr__ 只会在 __getattribute__ (如果没有重定义) 抛出 AttributeError 被调用, (如果有定义的话)
 
 *** descriptor protocol
 | descr.__get__(self, obj, type=None) --> value |
 | descr.__set__(self, obj, value) --> None      |
 | descr.__delete__(self, obj) --> None          |
-摘自官方文档 howto-descriptor\\
-The default behavior for attribute access is to get, set, or delete the attribute from an object's dictionary. For instance, a.x has a lookup chain starting with a.__dict__['x'], then type(a).__dict__['x'], and continuing through the base classes of type(a) excluding metaclasses. If the looked-up value is an object defining one of the descriptor methods, then Python may override the default behavior and invoke the descriptor method instead.\\
-Descriptors are a powerful, general purpose protocol. They are the mechanism behind properties, methods, static methods, class methods, and super().\\
-我的理解是 descriptor 的对象是作为类的属性 (具体地说是在类的 __dict__ 中, 注意是类而不是对象) 存在, 基本不在别处使用, 除非手动调用 a.__get__(a, type(a))\\
-根据 __get__, __set__, __delete__ 设置的不同, 分为 non-data descriptor (no __set__), data descriptor (特别地, read-only data descriptor)\\
+摘自官方文档 howto-descriptor
+The default behavior for attribute access is to get, set, or delete the attribute from an object's dictionary. For instance, a.x has a lookup chain starting with a.__dict__['x'], then type(a).__dict__['x'], and continuing through the base classes of type(a) excluding metaclasses. If the looked-up value is an object defining one of the descriptor methods, then Python may override the default behavior and invoke the descriptor method instead.
+Descriptors are a powerful, general purpose protocol. They are the mechanism behind properties, methods, static methods, class methods, and super().
+我的理解是 descriptor 的对象是作为类的属性 (具体地说是在类的 __dict__ 中, 注意是类而不是对象) 存在, 基本不在别处使用, 除非手动调用 a.__get__(a, type(a))
+根据 __get__, __set__, __delete__ 设置的不同, 分为 non-data descriptor (no __set__), data descriptor (特别地, read-only data descriptor)
 **** 实际调用过程
 #+BEGIN_SRC python
 type(b).__dict__['x'].__get__(b, type(b)) # b.x
@@ -281,8 +343,9 @@ __new__() is a static method (special-cased so you need not declare it as such) 
 |          | __file__          | 非对象                          |
 |          | __name__          |                                 |
 
-** 合理使用 generator 和 yield [from], 而不是各种 comprehension
-() 和 [] 的区别, 少占内存效率会高一些, 如果有 break 就高更多
+** 合理使用 generator 和 yield [from]
+注意与 comprehension 的区别, () 和 [],
+少占内存效率会高一些, 如果有 break 就高更多
 
 ** sorted 的稳定性
 In early python-versions, the sort function implemented a modified version of quicksort. However, it was deemed unstable and as of 2.3 they switched to using an adaptive mergesort algorithm.
@@ -300,10 +363,7 @@ In early python-versions, the sort function implemented a modified version of qu
 + 使用 ** 而不是 pow, 约 10 倍
 + list 的删除是费时的, 如果不介意顺序, 可以把尾部的元素赋值给要删除的位置, 再 pop
 
-** others
-1. star expression 其实只需要是 iterator 就能 unpack
-2. coding style (pep8)
-
+** star expression is unpack iterator
 ** donot
 *** 不要把不需要重复计算的部分放到 comprehension 中, 跟平常的代码是一样的, 不会优化
 #+BEGIN_SRC python
@@ -321,36 +381,7 @@ for _ in range(1000):
 print(time.time() - tic) # about 0.06s
 #+END_SRC
 
-** progress bar
-#+BEGIN_SRC python
-class ProgressBar:
-    def __init__(self, length=35, status=None):
-        if status is None:
-            self.status = (
-                [chr(9615)] + ['\b' + chr(i) for i in range(9614, 9607, -1)])
-        self.ns = len(self.status)
-        self.length = length * self.ns - 1
-        self.cursor = -1
-        print('|', end='', flush=True)
-
-    def moveto(self, percent):
-        superior = round(percent * self.length)
-        while self.cursor < superior:
-            self.cursor += 1
-            print(self.status[self.cursor % self.ns], end='', flush=True)
-        if percent == 1:
-            print('|', flush=True)
-
-
-if __name__ == '__main__':
-    pb = ProgressBar()
-    import time
-    for k in range(100):
-        pb.moveto((k + 1) / 100)
-        time.sleep(0.1)
-#+END_SRC
-
-** unpark tuple trap
+** unpack tuple trap
 #+BEGIN_SRC python
 from utils import ListNode
 a = ListNode('a')
@@ -399,59 +430,16 @@ class Solution(object):
         return bisect.bisect_left(foo(), k, 1, m * n + 1)
 #+END_SRC
 
-* data structure and algorithm
-| list              |
-| dict              |
-| map               |
-| set               |
-| collections.deque |
-| heapq             |
-
-** about binary search
-#+BEGIN_SRC python
-hi = len(seq) # not -1, otherwise seq[-1] may not be compared
-while lo < hi:
-    mid = (lo + hi) >> 1
-    # ...
-    if find:
-        return mid
-    elif some_condition:
-        lo = mid + 1 # always mid + 1, otherwise may be endless loop
-    else:
-        hi = mid # - 1 # may be just mid
-#+END_SRC
-
 ** sorted matrix 的一些算法很惊艳, 可惜构造略麻烦, 还是不实用
 比如查找算法, 从右上到左下, O(n)
 比如求 kth 个元素, 可以用二分查找, 利用上述查找算法, 获取元素的排序位置, 然后缩小一半的范围查找; 如果用堆的话, 其实有一个方向上有序的条件没有用到
 
-** bitwise
-#+BEGIN_SRC python
-a >> 1 # a // 2
-a << 2 # a * 4
-a & 1  # a % 2 == 1
-a ^ a == 0
-# | ~ >>= <<= &= ^= |=
-#+END_SRC
-
-* python
+* 其他
 ** 变量空间
 | globals                   |
 | locals                    |
 | sys._getframe().f_globals |
 | sys._getframe().f_locals  |
-
-** frozenset
-frozenset() -> empty frozenset object
-frozenset(iterable) -> frozenset object
-不可变集合, 无序, 有 hash 值, 用法之一 utils.memo_with_kwargs
-
-** class
-+ if an object does not have a __dict__, then you can’t assign arbitrary attributes to it.
-+ 类变量直接写在类中 (保存在类的 __dict__ 中), 而实例变量的赋值一般写在实例方法中 self.xx (保存在对象的 __dict__ 中)
-+ staticmethod, 可以类调用, 也可以实例调用, 第一个参数为 cls
-+ classmethod, 可以类调用, 也可以实例调用, 用法同类外函数
-+ property, 详见 descriptor protocol
 
 ** scope
 0. dynamic scoping 与 lexical scoping 的区别, 其实就是运行时上下文和定义时上下文, 详见 <王垠：Lisp 已死，Lisp 万岁！>
@@ -461,7 +449,7 @@ frozenset(iterable) -> frozenset object
 4. global 会直接找顶层的绑定, 如果没有, python 会抛出 NameError: name 'x' is not defined
 5. 绑定是引用
 6. 可以通过 __closure__ 显式获取绑定的值, 如下:
-   #+BEGIN_SRC python
+#+BEGIN_SRC python
 def f1():
     x = 3
     def f2():
@@ -473,11 +461,16 @@ ff = f1()
 print([c.cell_contents for c in ff.__closure__])
 ff()
 print([c.cell_contents for c in ff.__closure__])
-   #+END_SRC
+#+END_SRC
+
+** frozenset
+frozenset() -> empty frozenset object
+frozenset(iterable) -> frozenset object
+不可变集合, 无序, 有 hash 值, 用法之一 utils.memo_with_kwargs
 
 ** put string, unicode and integer together
-直接在解释器或用 print 都可以打印出 '\uXXXX' 对应的字体显示\\
-'\uXXXX' 是 unicode 的序号, 是连续的, python3 实现了 \u 转义, 即以其后面四位为 unicode 码的字符; 而二进制的存储 (不同的编码, 有不同的规则, 不一定连续) 不经过 decode 是没法显示的\\
+直接在解释器或用 print 都可以打印出 '\uXXXX' 对应的字体显示
+'\uXXXX' 是 unicode 的序号, 是连续的, python3 实现了 \u 转义, 即以其后面四位为 unicode 码的字符; 而二进制的存储 (不同的编码, 有不同的规则, 不一定连续) 不经过 decode 是没法显示的
 各种进制的整数,
 | 0b11, 0o11, 0x11  | (3, 9, 17) |
 | b o x             | format     |
@@ -491,14 +484,16 @@ for i in range(0x4e00, 0x9fa6, 40):
     print(''.join(chr(j) for j in range(i, i + 40)))
 # NOTE: 这段代码在 emacs -nw 比 gui 快多了, 这种输出比较多的还是用 -nw 运行
 #+END_SRC
-jieba 这个包里是到 0x9fd5, 但是后面的字体明显不等宽, 我觉得不是中文字\\
+jieba 这个包里是到 0x9fd5, 但是后面的字体明显不等宽, 我觉得不是中文字
+
+** coding style (pep8)
 
 * modules
 ** asyncio and async / await
-(普通函数, 生成器函数, 异步函数, 异步生成器函数)\\
-跟生成器一样, 异步函数也是通过 ret.send(None) 来驱动, 而且正常返回时也会抛出一个 StopIteration 异常, 并把返回值保存在 StopIteration 对象的 value 属性中\\
-await 只能出现在 async 修饰的函数中, 进一步后面必须要跟 Awaitable, 其作用是挂起自身等待 Awaitable 返回后继续\\
-用 @asyncio.coroutine 或 @types.coroutine 可以装饰生成器为协程\\
+(普通函数, 生成器函数, 异步函数, 异步生成器函数)
+跟生成器一样, 异步函数也是通过 ret.send(None) 来驱动, 而且正常返回时也会抛出一个 StopIteration 异常, 并把返回值保存在 StopIteration 对象的 value 属性中
+await 只能出现在 async 修饰的函数中, 进一步后面必须要跟 Awaitable, 其作用是挂起自身等待 Awaitable 返回后继续
+用 @asyncio.coroutine 或 @types.coroutine 可以装饰生成器为协程
 一般会用 asyncio 库的事件循环来调度:
 #+BEGIN_SRC python
 loop = asyncio.get_event_loop()
@@ -589,9 +584,6 @@ print([feature.result() for feature in result])
 | Iterable    |                         |
 | Sized       | __len__                 |
 |             |                         |
-|             |                         |
-|             |                         |
-|             |                         |
 |-------------+-------------------------|
 | OrderedDict | 我基本不用              |
 | nametuple   |                         |
@@ -606,7 +598,7 @@ gc.collect()
 #+END_SRC
 
 ** importlib
-每个 python interpreter 只会导入模块一次, 修改了模块就需要手动重新导入, 如下:\\
+每个 python interpreter 只会导入模块一次, 修改了模块就需要手动重新导入, 如下:
 (早期版本可以用 imp, 现在 deprecated)
 #+BEGIN_SRC python
 import importlib
@@ -640,8 +632,8 @@ t = timeit.Timer(stmt='pass', setup='pass',
 t.timeit(number=1000000)
 t.repeat(repeat=3, number=1000000)
 #+END_SRC
-语句用 ''' 括起来就行, 不要出现 _t0, _t1, _timer, _i 等变量即可\\
-timer 在 linux 下, 默认是 time.time()\\
+语句用 ''' 括起来就行, 不要出现 _t0, _t1, _timer, _i 等变量即可
+timer 在 linux 下, 默认是 time.time()
 globals 可需要用默认的 None, globals() 或 locals()
 
 ** warnings
@@ -687,7 +679,7 @@ warnings.warn(message, category=None, stacklevel=1, source=None)
 | ctypes        |
 
 * packages (一些文档里找不到或很难找到的 tricks)
-** mysql-connector-python-rf
+** mysql-connector-python
 #+BEGIN_SRC python
 import mysql.connector
 
@@ -726,8 +718,8 @@ def gen_data_str(data, template):
 #+END_SRC
 
 ** jieba
-BEMS: begin end middle single, 词的构成\\
-+照理, 训练出来的初始状态, 转移矩阵的和 (或行和) 应该等于 1 才对, 不知道为什么, jieba 给出的值都是负数+ jieba 给出的是 ln 过后的值, 好处是化乘法为加法达到加速效果\\
+BEMS: begin end middle single, 词的构成
++照理, 训练出来的初始状态, 转移矩阵的和 (或行和) 应该等于 1 才对, 不知道为什么, jieba 给出的值都是负数+ jieba 给出的是 ln 过后的值, 好处是化乘法为加法达到加速效果
 DAG, route 既然都是用 index 取索引, 用 list 效率应该会比 map 高不少
 
 ** numpy
