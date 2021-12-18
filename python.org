@@ -625,6 +625,22 @@ use raw string
 | findall |
 | sub     |
 
+#+BEGIN_SRC python
+import re
+r = re.compile(r"[a-zA-Z]+")
+s = "Hello World, 123, 456, 7890"
+r.sub(lambda m: m.group().upper(), s)
+
+r2 = re.compile(r"\d");
+dct2 = dict(zip('0123456789', 'abcdefghij'))
+r2.sub(lambda m: dct[m.group()], s)
+
+dct3 = dict(zip(range(50), [chr(i) for i in range(65, 65 + 50)]))
+r2.sub(lambda m: dct3[m.start()], s)
+
+# m = r.search(s) # NOTE: more supported methods
+#+END_SRC
+
 ** timeit
 #+BEGIN_SRC python
 t = timeit.Timer(stmt='pass', setup='pass',
