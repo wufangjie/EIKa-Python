@@ -525,6 +525,9 @@ for node in a:
 | setattr | __setattr__      |
 | delattr | __delattr__      |
 
+NOTE: 以下我的等价实现 __setattr__ 和 __delattr__ 会调用 __getattribute__,
+但实际上 python 的实现是不会调用它的, (可以注释 __setattr__ 看看结果)
+
 #+BEGIN_SRC python
 from datetime import date
 from pprint import pprint
@@ -594,6 +597,7 @@ The default behavior for attribute access is to get, set, or delete the attribut
 Descriptors are a powerful, general purpose protocol. They are the mechanism behind properties, methods, static methods, class methods, and super().
 我的理解是 descriptor 的对象是作为类的属性 (具体地说是在类的 __dict__ 中, 注意是类而不是对象) 存在, 基本不在别处使用, 除非手动调用 a.__get__(a, type(a))
 根据 __get__, __set__, __delete__ 设置的不同, 分为 non-data descriptor (no __set__), data descriptor (特别地, read-only data descriptor)
+
 *** 实际调用过程
 #+BEGIN_SRC python
 type(b).__dict__['x'].__get__(b, type(b)) # b.x
@@ -769,6 +773,7 @@ obj.test() # hello super changed <class '__main__.B'>
 | bool     | __bool__          |                                 |
 | hash     | __hash__          |                                 |
 | dir      | __dir__           |                                 |
+| del      | __del__           |                                 |
 |          | __sizeof__        | sys.getsizeof = __sizeof__ + gc |
 |----------+-------------------+---------------------------------|
 |          | __dict__          | 是属性, 不是函数, 详见 class    |
