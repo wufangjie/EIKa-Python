@@ -95,253 +95,25 @@ def my_wrap(func):
 #+END_SRC
 注意 __wrapped__, 更高级的用法需要研究 descriptor protocol
 
-** magic methods
-*** iterator protocol
-Python’s iterator protocol requires __iter__() to return a special iterator object that implements a __next__() operation and uses a StopIteration exception to signal
-completion.
-特别地, __iter__() 返回一个 generator
+*** class as decorator (carry data)
 #+BEGIN_SRC python
-class ListNode(object):
-    def __init__(self, x, next=None):
-        self.val = x
-        self.next = next
+from functools import wraps
+class Profiled:
+    def __init__(self, func):
+        wraps(func)(self)
+        self.ncalls = 0
 
-    def __iter__(self):
-        node = self
-        while node:
-            yield node
-            node = node.next
+    def __call__(self, *args, **kwargs):
+        self.ncalls += 1
 
-a = ListNode(1, ListNode(2, ListNode(3)))
-for node in a:
-    print(node.val)
+@Profiled
+def add(x, y):
+    return x + y
+
+add(1, 2)
+add(3, 4)
+print(add.ncalls)
 #+END_SRC
-
-*** with protocol
-自定义实现了 __enter__ and __exit__ 的类, 分别用于进入和退出时的操作
-
-*** __getattribute__, __getattr__, __setattr__, __delattr__, getattr, setattr, setattr
-Attribute assignments and deletions update the instance’s dictionary, never a class’s dictionary. If the class has a __setattr__() or __delattr__() method, this is called instead of updating the instance dictionary directly. (类的成员只能通过直接赋值或 del? 应该不会这么做)
-getattr 调用的是 __getattribute__
-__getattribute__ 在访问属性的时候都会被调用, 为了防止递归调用, 都用会调用基类或 object (新式类) 的 __getattribute__
-__getattr__ 只会在 __getattribute__ (如果没有重定义) 抛出 AttributeError 被调用, (如果有定义的话)
-
-*** descriptor protocol
-| descr.__get__(self, obj, type=None) --> value |
-| descr.__set__(self, obj, value) --> None      |
-| descr.__delete__(self, obj) --> None          |
-摘自官方文档 howto-descriptor
-The default behavior for attribute access is to get, set, or delete the attribute from an object's dictionary. For instance, a.x has a lookup chain starting with a.__dict__['x'], then type(a).__dict__['x'], and continuing through the base classes of type(a) excluding metaclasses. If the looked-up value is an object defining one of the descriptor methods, then Python may override the default behavior and invoke the descriptor method instead.
-Descriptors are a powerful, general purpose protocol. They are the mechanism behind properties, methods, static methods, class methods, and super().
-我的理解是 descriptor 的对象是作为类的属性 (具体地说是在类的 __dict__ 中, 注意是类而不是对象) 存在, 基本不在别处使用, 除非手动调用 a.__get__(a, type(a))
-根据 __get__, __set__, __delete__ 设置的不同, 分为 non-data descriptor (no __set__), data descriptor (特别地, read-only data descriptor)
-**** 实际调用过程
-#+BEGIN_SRC python
-type(b).__dict__['x'].__get__(b, type(b)) # b.x
-B.__dict__['x'].__get__(None, B) # B.x
-# note b.x = other, del b.x do not call magic methods
-#+END_SRC
-type.__getattribute__ 的一种实现方式, 如下:
-#+BEGIN_SRC python
-def __getattribute__(self, key):
-    v = object.__getattribute__(self, key)
-    if hasattr(v, '__get__'):
-        return v.__get__(None, self)
-    return v
-#+END_SRC
-这里就有一个先有鸡还是现有蛋的哲学问题了
-
-**** 重点说明
-1. descriptors are invoked by the __getattribute__() method
-2. overriding __getattribute__() prevents automatic descriptor calls
-3. object.__getattribute__() and type.__getattribute__() make different calls to __get__().
-4. data descriptors always override instance dictionaries.
-5. non-data descriptors may be overridden by instance dictionaries.
-
-其中, 45点还是不明白, 与做实验的结果不符, 也许没完全领会, 以后再说
-
-**** 先看一下这些函数的基本运作方式
-#+BEGIN_SRC python
-class Des:
-    def __init__(self, x):
-        self.x = x
-
-    def __get__(self, obj, type):
-        print('get:\nself={},\nobj={},\ntype={}'.format(self, obj, type))
-        return self.x
-
-    def __set__(self, obj, value):
-        print('set:\nself={},\nobj={},\nvalue={}'.format(self, obj, value))
-        self.x = value
-
-    def __delete__(self, obj):
-        print('del:\nself={},\nobj={}'.format(self, obj))
-
-class UseDes:
-    d = Des('hello')
-
-a = UseDes()
-UseDes.d
-a.d
-a.d = 'world' # UseDes.d changed to 'world'
-del a.d
-# set or delete UseDes.d did not call the magic methods
-#+END_SRC
-
-**** property
-#+BEGIN_SRC python
-property(fget=None, fset=None, fdel=None, doc=None) -> property attribute
-#+END_SRC
-getter, setter, deleter 是装饰器, 接受函数参数来给所属的对象的对应属性赋值, 返回一个修改过的对象
-#+BEGIN_SRC python
-class MyProperty:
-    def __init__(self, fget=None, fset=None, fdel=None):
-        self.fget = fget
-        self.fset = fset
-        self.fdel = fdel
-
-    def __get__(self, obj, type=None):
-        if obj is None:
-            return self
-        elif self.fget is None:
-            raise AttributeError('cannot read')
-        return self.fget(obj)
-
-    def __set__(self, obj, value):
-        if self.fset is None:
-            raise AttributeError('cannot assign')
-        self.fset(obj, value)
-
-    def __delete__(self, obj):
-        if self.fdel is None:
-            raise AttributeError('cannot delete')
-        self.fdel(obj)
-
-    def getter(self, fget):
-        self.fget = fget
-        return self
-
-    def setter(self, fset):
-        self.fset = fset
-        return self
-
-    def deleter(self, fdel):
-        self.fdel = fdel
-        return self
-#+END_SRC
-NOTE: 跟 property 的实现还是有区别的, 出现在被修饰的函数名不同时, 我的实现是前一个是最终结果, 而官方版本实现的是后一个是最终结果, (虽然不同名的不对的, 但也能看出一些东西)
-
-**** methods, class methods, static methods
-#+BEGIN_SRC python
-# 以下都是可以当作装饰器使用的, 使得普通的函数变成类的函数, 只是为了方便理解
-# python 定义在类中的 function 就直接是 method 了, 官方说明是 types.MethodType
-# 即手动定义了一个最简单的 method, 再 type(metod), 用了绑定函数
-class Method:
-    def __init__(self, f):
-        self.f = f
-
-    def __get__(self, obj, type=None):
-        if obj is None:
-            return self.f
-        def newfunc(*args, **kwargs):
-            return self.f(obj, *args, **kwargs)
-        return newfunc
-
-class ClassMethod:
-    def __init__(self, f):
-        self.f = f
-
-    def __get__(self, obj, klass=None):
-        if klass is None:
-            klass = type(obj)
-        def newfunc(*args, **kwargs):
-            return self.f(klass, *args, **kwargs)
-        return newfunc
-
-class StaticMethod:
-    def __init__(self, f):
-        self.f = f
-
-    def __get__(self, obj, type=None):
-        return self.f
-#+END_SRC
-
-*** super
-python 官方一直在改, 有很多不确定的东西, 有时间再深入了解
-#+BEGIN_SRC python
-class A:
-    def test(self):
-        print('hello super', self.__class__)
-
-class B(A):
-    def test(self):
-        print('hello super changed', self.__class__)
-
-    def test1(self):
-        return super()
-
-    def test2(self):
-        return super(__class__)
-
-    def test3(self):
-        return super(__class__, self)
-
-    def test4(self):
-        return super(__class__, __class__)
-
-
-obj = B()
-b1, b2, b3, b4 = obj.test1(), obj.test2(), obj.test3(), obj.test4()
-# 我的实验和理解 super 就是派生类以 (它的实例或本身) 访问基类的方式
-# super() same as super(__class__, <first argument>)
-b1.test()
-b2.test() # AttributeError: 'super' object has no attribute 'test', very little used
-b3.test()
-b4.test(obj) # hello super <class '__main__.B'>
-obj.test() # hello super changed <class '__main__.B'>
-#+END_SRC
-
-*** __new__
-__new__() is a static method (special-cased so you need not declare it as such) that takes the class of which an instance was requested as its first argument.
-
-*** others
-| in       | __contains__      |                                 |
-| len      | __len__           |                                 |
-| reversed | __reversed__      |                                 |
-| next     | __next__          |                                 |
-| str      | __str__           |                                 |
-| repr     | __repr__          |                                 |
-| bool     | __bool__          |                                 |
-| hash     | __hash__          |                                 |
-| dir      | __dir__           |                                 |
-|          | __sizeof__        | sys.getsizeof = __sizeof__ + gc |
-|----------+-------------------+---------------------------------|
-|          | __dict__          | 是属性, 不是函数, 详见 class    |
-|          | __doc__           |                                 |
-|          | __init__          |                                 |
-|          | __new__           | low-level, 一般不手动调用       |
-| type?    | __class__         |                                 |
-|          | __subclasshook__  |                                 |
-|----------+-------------------+---------------------------------|
-|          | __delattr__       | attr 相关函数中不要使用自身     |
-|          | __getattr__       | 属性不存在时, 才会起作用        |
-|          | __getattribute__  |                                 |
-|          | __setattr__       |                                 |
-|          | __delitem__       |                                 |
-|          | __getitem__       |                                 |
-|          | __setitem__       |                                 |
-|----------+-------------------+---------------------------------|
-|          | eq ge gt le lt ne |                                 |
-|          | 其他数学逻辑函数  |                                 |
-|----------+-------------------+---------------------------------|
-|          | __format__        | 一般都用字符串现成的            |
-|          | __copy__          |                                 |
-|          | __deepcopy__      |                                 |
-|          | __reduce__        | helper for pickle               |
-|          | __reduce_ex__     | helper for pickle               |
-|----------+-------------------+---------------------------------|
-|          | __file__          | 非对象                          |
-|          | __name__          |                                 |
 
 ** 合理使用 generator 和 yield [from]
 注意与 comprehension 的区别, () 和 [],
@@ -488,92 +260,26 @@ jieba 这个包里是到 0x9fd5, 但是后面的字体明显不等宽, 我觉得
 
 ** coding style (pep8)
 
+** functional
++ collections.ChainMap (和 update 相反), itertools.chain
++ filter, itertools.compress
+
+** two capture ways
+#+BEGIN_SRC python
+a = 10
+f1 = lambda x: x + a
+b = 10
+f2 = lambda x, b=b: x + b
+
+assert f1(10) == 20
+assert f2(10) == 20
+a = 20
+b = 20
+assert f1(10) == 30
+assert f2(10) == 20
+#+END_SRC
+
 * modules
-** asyncio and async / await
-(普通函数, 生成器函数, 异步函数, 异步生成器函数)
-跟生成器一样, 异步函数也是通过 ret.send(None) 来驱动, 而且正常返回时也会抛出一个 StopIteration 异常, 并把返回值保存在 StopIteration 对象的 value 属性中
-await 只能出现在 async 修饰的函数中, 进一步后面必须要跟 Awaitable, 其作用是挂起自身等待 Awaitable 返回后继续
-用 @asyncio.coroutine 或 @types.coroutine 可以装饰生成器为协程
-一般会用 asyncio 库的事件循环来调度:
-#+BEGIN_SRC python
-loop = asyncio.get_event_loop()
-loop.run_until_complete(something)
-#+END_SRC
-
-** concurrent.futures
-#+BEGIN_SRC python
-import time
-import asyncio
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
-# 感觉 as_completed 的唯一作用就是知道各个部分的大致完成先后顺序
-
-
-
-n = 10
-
-
-def output(i):
-    with open('{}.txt'.format(i), 'wt') as f:
-        for j in range(10000):
-            f.write('{}\n'.format(i + j))
-
-
-async def output_async(i):
-    with open('{}.txt'.format(i), 'wt') as f:
-        for j in range(10000):
-            f.write('{}\n'.format(i + j))
-
-
-
-time_points = [time.time()]
-
-
-for i in range(n):
-    output(i)
-time_points.append(time.time())
-
-
-async def main():
-    await asyncio.wait([output_async(n + i) for i in range(n)])
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-time_points.append(time.time())
-
-
-with ThreadPoolExecutor() as pool:
-    for i in range(n):
-        pool.submit(output, 2 * n + i)
-time_points.append(time.time())
-
-
-with ProcessPoolExecutor() as pool:
-    for i in range(n):
-        pool.submit(output, 3 * n + i)
-time_points.append(time.time())
-
-
-for i, t in enumerate(['origin', 'async', 'multi-thread', 'multi-process']):
-    print('{}: cost {}s'.format(t, time_points[i + 1] - time_points[i]))
-
-
-# origin: cost 0.09283709526062012s
-# async: cost 0.03890538215637207s
-# multi-thread: cost 0.04110264778137207s
-# multi-process: cost 0.027208805084228516s
-
-# Executor 的 map 方法和通过 loop
-lst = [8, 4, 2, 6, 5, 1, 3, 9, 7]
-with ThreadPoolExecutor() as pool:
-    result = pool.map(lambda x: x ** 2, lst)
-print(list(result))
-result = []
-with ThreadPoolExecutor() as pool:
-    for i in lst:
-        result.append(pool.submit(lambda x: x ** 2, i))
-print([feature.result() for feature in result])
-#+END_SRC
-
 ** collections
 | deque       |                         |
 | Counter     |                         |
@@ -583,7 +289,6 @@ print([feature.result() for feature in result])
 | Callable    |                         |
 | Iterable    |                         |
 | Sized       | __len__                 |
-|             |                         |
 |-------------+-------------------------|
 | OrderedDict | 我基本不用              |
 | nametuple   |                         |
@@ -639,6 +344,9 @@ dct3 = dict(zip(range(50), [chr(i) for i in range(65, 65 + 50)]))
 r2.sub(lambda m: dct3[m.start()], s)
 
 # m = r.search(s) # NOTE: more supported methods
+# re.compile(r'(\d+)/(\d+)/(\d+)')
+# group(), group(0) means all, 1, 2, 3 just like rust
+# flags=re.IGNORECASE
 #+END_SRC
 
 ** timeit
@@ -693,6 +401,446 @@ warnings.warn(message, category=None, stacklevel=1, source=None)
 | subprocessing |
 | logging       |
 | ctypes        |
+
+* concurrency
+** yield, send
+#+BEGIN_SRC python
+def make_handler():
+    sequence = 0
+    while True:
+        result = yield
+        sequence += 1
+        print('[{}] Got: {}'.format(sequence, result))
+
+def apply_async(func, args, *, callback):
+    result = func(*args)
+    callback(result)
+
+handler = make_handler()
+next(handler)
+apply_async(lambda x, y: x + y, (2, 3), callback=handler.send)
+apply_async(lambda x, y: x + y, ('hello', 'world'), callback=handler.send)
+#+END_SRC
+
+** asyncio and async / await
+(普通函数, 生成器函数, 异步函数, 异步生成器函数)
+
+跟生成器一样, 异步函数也是通过 ret.send(None) 来驱动, 而且正常返回时也会抛出一个 StopIteration 异常, 并把返回值保存在 StopIteration 对象的 value 属性中
+
+await 只能出现在 async 修饰的函数中, 进一步后面必须要跟 Awaitable, 其作用是挂起自身等待 Awaitable 返回后继续
+
+用 @asyncio.coroutine 或 @types.coroutine 可以装饰生成器为协程
+
+一般会用 asyncio 库的事件循环来调度:
+#+BEGIN_SRC python
+loop = asyncio.get_event_loop()
+loop.run_until_complete(something)
+#+END_SRC
+
+** 性能的简单比较
+#+BEGIN_SRC python
+import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+# 感觉 as_completed 的唯一作用就是知道各个部分的大致完成先后顺序
+
+n = 10
+
+def output(i):
+    with open('{}.txt'.format(i), 'wt') as f:
+        for j in range(10000):
+            f.write('{}\n'.format(i + j))
+
+async def output_async(i):
+    with open('{}.txt'.format(i), 'wt') as f:
+        for j in range(10000):
+            f.write('{}\n'.format(i + j))
+
+time_points = [time.time()]
+for i in range(0 * n, 1 * n):
+    output(i)
+time_points.append(time.time())
+
+async def main():
+    await asyncio.wait([output_async(i) for i in range(1 * n, 2 * n)])
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+time_points.append(time.time())
+
+with ThreadPoolExecutor(max_workers=4) as pool:
+    for i in range(2 * n, 3 * n):
+        pool.submit(output, i)
+time_points.append(time.time())
+
+with ProcessPoolExecutor(max_workers=4) as pool:
+    for i in range(3 * n, 4 * n):
+        pool.submit(output, i)
+time_points.append(time.time())
+
+for i, t in enumerate(['origin', 'async', 'multi-thread', 'multi-process']):
+    print('{}: cost {}s'.format(t, time_points[i + 1] - time_points[i]))
+#+END_SRC
+
+** concurrent.futures (未来会被求值的 object)
+#+BEGIN_SRC python
+# Executor 的 map 方法和通过 loop
+lst = [8, 4, 2, 6, 5, 1, 3, 9, 7]
+with ThreadPoolExecutor() as pool:
+    result = pool.map(lambda x: x ** 2, lst)
+print(list(result))
+result = []
+with ThreadPoolExecutor() as pool:
+    for i in lst:
+        result.append(pool.submit(lambda x: x ** 2, i))
+print([future.result() for future in result])
+#+END_SRC
+
+* magic methods
+** iterator protocol
+Python’s iterator protocol requires __iter__() to return a special iterator object that implements a __next__() operation and uses a StopIteration exception to signal completion
+特别地, __iter__() 可以返回一个 generator
+#+BEGIN_SRC python
+class ListNode(object):
+    def __init__(self, x, next=None):
+        self.val = x
+        self.next = next
+
+    def __iter__(self):
+        node = self
+        while node:
+            yield node
+            node = node.next
+
+a = ListNode(1, ListNode(2, ListNode(3)))
+for node in a:
+    print(node.val)
+#+END_SRC
+
+** with protocol
+自定义实现了 __enter__ and __exit__ 的类, 分别用于进入和退出时的设定相应操作
+
+** attribute access
+| getattr | __getattribute__ |
+|         | __getattr__      |
+| setattr | __setattr__      |
+| delattr | __delattr__      |
+
+#+BEGIN_SRC python
+from datetime import date
+from pprint import pprint
+import unittest
+
+class Blog:
+    website = 'mysite.com'
+
+    def __init__(self, title, author, create_time):
+        self.title = title
+        self.author = author
+        self.create_time = create_time
+
+    def publish(self):
+        print('Blog "{}" written by {} published at {} on {}'.format(
+            self.title, self.author, self.create_time, self.website))
+
+    def __getattribute__(self, name):
+        # 赋值的时候也会调用
+        print('calling __getattribute__')
+        # 为了避免无限递归, 自定义该函数时一般都需要调用以下语句之一
+        return super().__getattribute__(name)
+        # return object.__getattribute__(self, item)
+
+    def __getattr__(self, name):
+        # 只有当 __getattribute__ 或 __get__ 抛出异常时会被调用
+        print('calling __getattr__')
+
+    def __setattr__(self, name, value):
+        print('calling __setattr__')
+        self.__dict__[name] = value # NOTE: will call __getattribute__
+
+    def __delattr__(self, name):
+        print('calling __delattr__')
+        self.__dict__.pop(name) # NOTE: will call __getattribute__
+
+blog = Blog('blog1', 'user1', date.today())
+
+# __getattr__
+blog.publish() # exist, calling __getattribute__
+blog.website   # class, ..
+blog.content   # not exist, .. + calling __getattr__
+
+# __delattr__
+del blog.title
+with unittest.TestCase().assertRaises(KeyError):
+    del blog.website
+
+# __dict__
+pprint(blog.__dict__)
+pprint(Blog.__dict__)
+
+# getattr, setattr, delattr 其实就是魔法函数对应的函数, 比如 len 对应 __len__
+# 对应 __getattribute__, __setattr__, __delattr__
+getattr(blog, 'title')
+#+END_SRC
+
+** descriptor protocol
+https://docs.python.org/3/howto/descriptor.html
+
+| descr.__get__(self, obj, objtype=None) --> value |
+| descr.__set__(self, obj, value) --> None         |
+| descr.__delete__(self, obj) --> None             |
+
+摘自官方文档 howto-descriptor
+The default behavior for attribute access is to get, set, or delete the attribute from an object's dictionary. For instance, a.x has a lookup chain starting with a.__dict__['x'], then type(a).__dict__['x'], and continuing through the base classes of type(a) excluding metaclasses. If the looked-up value is an object defining one of the descriptor methods, then Python may override the default behavior and invoke the descriptor method instead.
+Descriptors are a powerful, general purpose protocol. They are the mechanism behind properties, methods, static methods, class methods, and super().
+我的理解是 descriptor 的对象是作为类的属性 (具体地说是在类的 __dict__ 中, 注意是类而不是对象) 存在, 基本不在别处使用, 除非手动调用 a.__get__(a, type(a))
+根据 __get__, __set__, __delete__ 设置的不同, 分为 non-data descriptor (no __set__), data descriptor (特别地, read-only data descriptor)
+*** 实际调用过程
+#+BEGIN_SRC python
+type(b).__dict__['x'].__get__(b, type(b)) # b.x
+B.__dict__['x'].__get__(None, B) # B.x
+# note b.x = other, del b.x do not call magic methods
+#+END_SRC
+type.__getattribute__ 的一种实现方式, 如下:
+#+BEGIN_SRC python
+def __getattribute__(self, key):
+    v = object.__getattribute__(self, key)
+    if hasattr(v, '__get__'):
+        return v.__get__(None, self)
+    return v
+#+END_SRC
+这里就有一个先有鸡还是现有蛋的哲学问题了
+
+*** 重点说明
+1. descriptors are invoked by the __getattribute__() method
+2. overriding __getattribute__() prevents automatic descriptor calls
+3. object.__getattribute__() and type.__getattribute__() make different calls to __get__().
+4. data descriptors always override instance dictionaries.
+5. non-data descriptors may be overridden by instance dictionaries.
+
+其中, 45点还是不明白, 与做实验的结果不符, 也许没完全领会, 以后再说
+
+*** 先看一下这些函数的基本运作方式
+#+BEGIN_SRC python
+class Des:
+    def __init__(self, x):
+        self.x = x
+
+    def __get__(self, obj, type):
+        print('get:\nself={},\nobj={},\ntype={}'.format(self, obj, type))
+        return self.x
+
+    def __set__(self, obj, value):
+        print('set:\nself={},\nobj={},\nvalue={}'.format(self, obj, value))
+        self.x = value
+
+    def __delete__(self, obj):
+        print('del:\nself={},\nobj={}'.format(self, obj))
+
+class UseDes:
+    d = Des('hello')
+
+a = UseDes()
+UseDes.d
+a.d
+a.d = 'world' # UseDes.d changed to 'world'
+del a.d
+# set or delete UseDes.d did not call the magic methods
+#+END_SRC
+
+*** 用来实现 property
+#+BEGIN_SRC python
+property(fget=None, fset=None, fdel=None, doc=None) -> property attribute
+#+END_SRC
+getter, setter, deleter 是装饰器, 接受函数参数来给所属的对象的对应属性赋值, 返回一个修改过的对象
+#+BEGIN_SRC python
+class MyProperty:
+    def __init__(self, fget=None, fset=None, fdel=None):
+        self.fget = fget
+        self.fset = fset
+        self.fdel = fdel
+
+    def __get__(self, obj, type=None):
+        if obj is None:
+            return self
+        elif self.fget is None:
+            raise AttributeError('cannot read')
+        return self.fget(obj)
+
+    def __set__(self, obj, value):
+        if self.fset is None:
+            raise AttributeError('cannot assign')
+        self.fset(obj, value)
+
+    def __delete__(self, obj):
+        if self.fdel is None:
+            raise AttributeError('cannot delete')
+        self.fdel(obj)
+
+    def getter(self, fget):
+        self.fget = fget
+        return self
+
+    def setter(self, fset):
+        self.fset = fset
+        return self
+
+    def deleter(self, fdel):
+        self.fdel = fdel
+        return self
+#+END_SRC
+NOTE: 跟 property 的实现还是有区别的, 出现在被修饰的函数名不同时, 我的实现是前一个是最终结果, 而官方版本实现的是后一个是最终结果, (虽然不同名的不对的, 但也能看出一些东西)
+
+*** 用来实现 methods, class methods, static methods
+#+BEGIN_SRC python
+# 以下都是可以当作装饰器使用的, 使得普通的函数变成类的函数, 只是为了方便理解
+# python 定义在类中的 function 就直接是 method 了, 官方说明是 types.MethodType
+# 即手动定义了一个最简单的 method, 再 type(method), 用了绑定函数
+class Method:
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, obj, type=None):
+        if obj is None:
+            return self.f
+        def newfunc(*args, **kwargs):
+            return self.f(obj, *args, **kwargs)
+        return newfunc
+
+class ClassMethod:
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, obj, klass=None):
+        if klass is None:
+            klass = type(obj)
+        def newfunc(*args, **kwargs):
+            return self.f(klass, *args, **kwargs)
+        return newfunc
+
+class StaticMethod:
+    def __init__(self, f):
+        self.f = f
+
+    def __get__(self, obj, type=None):
+        return self.f
+#+END_SRC
+
+** super
+python 官方一直在改, 有很多不确定的东西, 有时间再深入了解
+#+BEGIN_SRC python
+class A:
+    def test(self):
+        print('hello super', self.__class__)
+
+class B(A):
+    def test(self):
+        print('hello super changed', self.__class__)
+
+    def test1(self):
+        return super()
+
+    def test2(self):
+        return super(__class__)
+
+    def test3(self):
+        return super(__class__, self)
+
+    def test4(self):
+        return super(__class__, __class__)
+
+obj = B()
+b1, b2, b3, b4 = obj.test1(), obj.test2(), obj.test3(), obj.test4()
+# 我的实验和理解 super 就是派生类以 (它的实例或本身) 访问基类的方式
+# super() same as super(__class__, <first argument>)
+b1.test()
+b2.test() # AttributeError: 'super' object has no attribute 'test', very little used
+b3.test()
+b4.test(obj) # hello super <class '__main__.B'>
+obj.test() # hello super changed <class '__main__.B'>
+#+END_SRC
+
+** others
+| in       | __contains__      |                                 |
+| len      | __len__           |                                 |
+| reversed | __reversed__      |                                 |
+| next     | __next__          |                                 |
+| str      | __str__           |                                 |
+| repr     | __repr__          |                                 |
+| bool     | __bool__          |                                 |
+| hash     | __hash__          |                                 |
+| dir      | __dir__           |                                 |
+|          | __sizeof__        | sys.getsizeof = __sizeof__ + gc |
+|----------+-------------------+---------------------------------|
+|          | __dict__          | 是属性, 不是函数, 详见 class    |
+|          | __doc__           |                                 |
+|          | __init__          |                                 |
+|          | __new__           | low-level, 一般不手动调用       |
+| type?    | __class__         |                                 |
+|          | __subclasshook__  |                                 |
+|----------+-------------------+---------------------------------|
+|          | __delitem__       |                                 |
+|          | __getitem__       |                                 |
+|          | __setitem__       |                                 |
+|----------+-------------------+---------------------------------|
+|          | eq ge gt le lt ne |                                 |
+|          | 其他数学逻辑函数  |                                 |
+|----------+-------------------+---------------------------------|
+|          | __format__        | 一般都用字符串现成的            |
+|          | __copy__          |                                 |
+|          | __deepcopy__      |                                 |
+|          | __reduce__        | helper for pickle               |
+|          | __reduce_ex__     | helper for pickle               |
+|----------+-------------------+---------------------------------|
+|          | __file__          | 非对象                          |
+|          | __name__          |                                 |
+
+__new__() is a static method (special-cased so you need not declare it as such) that takes the class of which an instance was requested as its first argument.
+
+* logging
+** basicConfig
+#+BEGIN_SRC python
+import logging
+# fh0 = logging.FileHandler("test.log", mode='a', encoding='utf-8')
+# print(fh0.baseFilename)
+logging.basicConfig(level=logging.INFO,
+                    # filename="~/test.log",
+                    # filemode="a",
+                    format="[%(asctime)s] [%(name)s:%(levelname)9s] [%(filename)s:%(lineno)s] %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S",
+                    # handlers=[fh0]
+)
+#+END_SRC
+default is console handler, output to sys.stdout
+
+** reload
+logging 模块导入之后就只能设定 basicConfig 一次, 除非
+#+BEGIN_SRC python
+import importlib
+importlib.reload(logging)
+#+END_SRC
+
+** five levels
+| variable     | method   |
+|--------------+----------|
+| DEBUG        | debug    |
+| INFO         | info     |
+| WARN/WARNING | warning  |
+| ERROR        | error    |
+| CRITICAL     | critical |
+
+** logger, formatter, handler, filter
+#+BEGIN_SRC python
+fh = logging.FileHandler(filename, mode='a', encoding=None, delay=False)
+fh.setFormatter(fmt) # format string or logging.Formatter
+
+logger = logging.getLogger(name=None)
+logger.addHandler(hdlr)
+logger.setLevel(level) # fh.setLevel(level)
+logger.addFilter(filter) # fh.addFilter(filter)
+# TODO: filter 暂时用不到, 以后再说
+
+help(logging.Formatter) # see more useful attributes
+#+END_SRC
 
 * packages (一些文档里找不到或很难找到的 tricks)
 ** mysql-connector-python
