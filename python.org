@@ -555,6 +555,7 @@ class Blog:
     def __getattr__(self, name):
         # 只有当 __getattribute__ 或 __get__ 抛出异常时会被调用
         print('calling __getattr__')
+	raise AttributeError()
 
     def __setattr__(self, name, value):
         print('calling __setattr__')
@@ -569,7 +570,7 @@ blog = Blog('blog1', 'user1', date.today())
 # __getattr__
 blog.publish() # exist, calling __getattribute__
 blog.website   # class, ..
-blog.content   # not exist, .. + calling __getattr__
+blog.update_time   # not exist, .. + calling __getattr__
 
 # __delattr__
 del blog.title
@@ -582,7 +583,10 @@ pprint(Blog.__dict__)
 
 # getattr, setattr, delattr 其实就是魔法函数对应的函数, 比如 len 对应 __len__
 # 对应 __getattribute__, __setattr__, __delattr__
-getattr(blog, 'title')
+getattr(blog, 'title', None) # getattr(object, name[, default]) -> value
+# 设置第三个参数可以防止抛出异常
+
+blog.content.append('paragraph1') # will not call __setattr__
 #+END_SRC
 
 ** descriptor protocol
