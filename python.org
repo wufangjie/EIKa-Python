@@ -922,3 +922,16 @@ virtualenv temp_env --system-site-packages 参数
 #+BEGIN_SRC sh
 source temp_env/bin/activate
 #+END_SRC
+
+* something new
+** breakpoint()
+#+BEGIN_SRC python
+import pdb; pdb.set_trace()
+#+END_SRC
+
+** vars([object]) -> dictionary
++ Without arguments, equivalent to locals().
++ With an argument, equivalent to object.__dict__.
+
+** __set_name__
+https://docs.python.org/3/howto/descriptor.html#customized-names
