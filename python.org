@@ -935,3 +935,15 @@ import pdb; pdb.set_trace()
 
 ** __set_name__
 https://docs.python.org/3/howto/descriptor.html#customized-names
+** unittest, doctest
+#+BEGIN_SRC python
+import unittest
+
++ 继承 unittest.TestCase 类
++ with unittest.TestCase().assertRaises(ZeroDivisionError)
+#+END_SRC
+
+#+BEGIN_SRC python
+import doctest
+doctest.testmod()
+#+END_SRC
