@@ -1,0 +1,347 @@
+* 参考
+https://docs.sqlalchemy.org/en/14/orm/tutorial.html
+https://zhuanlan.zhihu.com/p/27400862
+
+* 重要概念
+| Engine  | 连接         |
+| Session | 连接池, 事务 |
+| Model   | 表           |
+| Column  | 列           |
+| Query   |              |
+
+** Base
+#+BEGIN_SRC python
+from sqlalchemy.orm import declarative_base
+Base = declarative_base() # 所有的表都要继承这个类
+#+END_SRC
+
+** engine
+#+BEGIN_SRC python
+engine = create_engine(config_str, echo=True) # 会打印真正执行的 sql 语句
+#+END_SRC
+
+** session
+#+BEGIN_SRC python
+from sqlalchemy.orm import sessionmaker
+get_session = sessionmaker(bind=engine)
+# get_session.configure(bind=engine) # 写到参数里就行
+# get_session.configure(auto_commit=False)
+#+END_SRC
+
+NOTE: use with or not
+
+** rollback 回滚 (未 commit 前)
+
+* 新建表
+主键, 自增, 默认值, 注释, 是否可为空
+TODO: 外键
+#+BEGIN_SRC python
+class Student(Base):
+    __tablename__ = 'student'
+
+    s_id = Column(Integer, primary_key=True, autoincrement=True)
+    s_name = Column(String(10), nullable=False, comment="姓名")
+    s_birth = Column(Date, comment="生日")
+    s_sex = Column(String(1), default="男") # actually char(1)
+#+END_SRC
+
+* crud basic
+** 增
++ session.add()
++ session.add_all()
+
+** 查
++ session.query(映射类)
++ session.query(几个特定字段)
+#+BEGIN_SRC python
+session
+.query(Student.s_name, Student.s_birth)
+.filter(Student.s_name.like("王%"))
+.all()
+#+END_SRC
+
+https://docs.sqlalchemy.org/en/14/orm/query.html#sqlalchemy.orm.query.Query.__init__
+https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.Column.__eq__
+
+** 改
++ 直接改 instance, 然后 commit()
++ 对查询结果 update(update_dict) 字典内可以用模型的字段
+
+** 删
++ session.delete(instance)
++ 对查询结果 delete()
+
+NOTE: instance 被删除之后, 如果再次 add, 会报错, 需要 make_transient
+
+* 状态 (感觉了解即可, 实际并没有用)
+#+BEGIN_SRC python
+from sqlalchemy import inspect
+inspect(isntance)
+#+END_SRC
+
+| 新建实体  | transient (临时) |
+| add 后    | pending          |
+| flush 后  | persistent       |
+| commit 后 | persistent       |
+
+成功查询返回的实体对象，也是 persistent 状态。
+persistent状态的实体，修改依然是persistent状态。
+
+persistent 状态的实体，删除后，
+flush后但没有commit，就变成deteled状态，
+成功提交，变为detached状态，
+提交失败，还原到persistent状态
+
+删除、修改操作，需要对应一个真实的记录，所以要求实体对象是persistent状态
+
+* flush, commit
+1. flush 会生成 primary key, 即使最后没有 commit (主要是用于事务?)
+2. 当前 session 可以查到 flush 做的增删改的结果
+3. 其他 session 只有在 commit 之后，才能查到 flush 做的增删改结果
+4. query 会 flush 之前的缓存
+
+* dirty, new
+改了或新增, 没flush, 会有值, 否则为空
+#+BEGIN_SRC python
+s1 = Student(s_name="张龙", s_birth="1991-11-11")
+session.add(s1) # new
+s1.s_name = "张小龙" # new
+session.flush() # nothing
+s1.s_name = "赵虎" # dirty
+#+END_SRC
+
+* filter/filter_by
+filter 更符合 python 的语法, 我只用它
+#+BEGIN_SRC python
+session()
+.query(Something)
+.filter_by(fullname='Ed Jones') # NOTE: =
+.filter(User.fullname=='Ed Jones') # NOTE: ==
+#+END_SRC
+
+==,
+!=,
+like, ilike
+in_
+is_, is_not(None)
+
+match # mysql 貌似用不了
+
+#+BEGIN_SRC python
+from sqlalchemy import tuple_, and_, or_, not_
+# tuple_ 用来组合, 可配合 in_ 使用
+#+END_SRC
+
+* consumer function
+first
+one 获取所有数据, 如果不是一条则报错
+one_or_none
+all
+
+scalar 会调用 one, 返回第一列的值, (经常用于返回一个常量, 如 count)
+count # 注意和 scalar 同级, 不同时使用
+
+* text/session.execute(statement)
+#+BEGIN_SRC python
+session
+.query(User)
+.filter(text("id<:value and name=:name"))
+.params(value=224, name='fred')
+.order_by(User.id)
+.one()
+#+END_SRC
+#+BEGIN_SRC python
+session
+.query(User)
+.from_statement(text("SELECT * FROM users where name=:name"))
+.params(name='ed')
+.all()
+#+END_SRC
+
+* func (聚合函数, 转换函数)
+** func 没有补全, 但能用, 不方便查阅所有支持的函数
+** count(*)
+count(*) 不知道是哪张表, 用这个来解决
+#+BEGIN_SRC python
+from sqlalchemy import func
+session.query(func.count('*')).select_from(Student).scalar()
+#+END_SRC
+
+** func.group_concat (p09)
+** func.if_ (p14)
+** over
+#+BEGIN_SRC python
+s_rank = func.rank().over(partition_by=SC.c_id, order_by=desc(SC.score))
+res = (session
+       .query(SC.c_id, SC.s_id, SC.score, s_rank)
+       .order_by(SC.c_id, s_rank)
+       .all())
+#+END_SRC
+
+| rank       |
+| dense_rank |
+| row_number |
+
+** 时间相关
+year, month
+
+* join, subquery, outerjoin (left outer join)
+#+BEGIN_SRC python
+# 两种写法, 一是行尾续行, 另一种是用 () 包起来
+# 返回的是
+subquery = session\
+    .query(SC)\
+    .filter(SC.c_id == 2)\
+    .subquery()
+res = (session
+       .query(Student, SC.score, subquery.c.score)
+       .filter(SC.c_id == 1)
+       .join(subquery, SC.s_id == subquery.c.s_id)
+       .filter(SC.score > subquery.c.score)
+       .join(Student, SC.s_id == Student.s_id)
+       .all())
+#+END_SRC
+
+* group_by, having, order_by
+https://stackoverflow.com/questions/15362149/how-use-alias-in-sqlachemy
+
+** aggregate as 的两种方法
+NOTE: label 需要人为注意保持不同, 如果是用来显示列名不会报错
+NOTE: label 必须加上, 否则不会复用 (重新计算)
+#+BEGIN_SRC python
+avg_score = func.avg(SC.score).label('avg_score')
+subquery = (session
+            .query(SC.s_id, avg_score) # 直接用
+            .group_by(SC.s_id)
+            .having(avg_score > 60) # 直接用
+            .subquery())
+res = (session
+       .query(Student.s_id, Student.s_name, subquery.c.avg_score) # label
+       .join(subquery, Student.s_id == subquery.c.s_id)
+       .all())
+#+END_SRC
+
+** order_by, desc
+#+BEGIN_SRC python
+from sqlalchemy import desc
+subquery = (session
+            .query(SC.s_id, SC.score)
+            .filter(and_(SC.c_id == 1, SC.score < 60))
+            .subquery())
+res = (session
+       .query(Student)
+       .join(subquery, Student.s_id == subquery.c.s_id)
+       .order_by(desc(subquery.c.score))
+       .all())
+#+END_SRC
+
+* distinct
+** 单字段去重
+#+BEGIN_SRC python
+from sqlalchemy import distinct
+query = (session
+         .query(distinct(SC.s_id))
+         .join(Course, Course.c_id == SC.c_id)
+         .join(Teacher, Course.t_id == Teacher.t_id)
+         .filter(Teacher.t_name == "张三"))
+#+END_SRC
+
+** 整体去重
+Query.distinct()
+
+** all (默认会去重)
+#+BEGIN_SRC python
+help(Query.all)
+#+END_SRC
+will **deduplicate entries based on primary key**
+
+* exists
+#+BEGIN_SRC python
+from sqlalchemy import exists
+res = (session
+       .query(Student)
+       .filter(exists().where(Student.s_id == SC.s_id))
+       .all())
+#+END_SRC
+
+没有 not_exists, 用 ~exists 或 not_(exists
+
+* with as (p34)
+https://stackoverflow.com/questions/31620469/sqlalchemy-select-with-clause-statement-pgsql
+
+* student.* (p40)
+#+BEGIN_SRC python
+res = (session
+       .query(*Student.__table__.c,
+              func.year(func.now()) - func.year(Student.s_birth))
+       .all())
+#+END_SRC
+
+* automap, autoload
+automap 貌似有点麻烦, 以后再说
+#+BEGIN_SRC python
+from sqlalchemy import MetaData, Table
+md = MetaData(engine)
+
+class Student(Base):
+    __table__ = Table("student", md, autoload=True)
+    # NOTE: __table__ rather than __tablename__
+
+    def __repr__(self):
+        return make_repr(
+            self, ["s_id", "s_name", "s_birth", "s_sex"], one_row=False)
+#+END_SRC
+
+* 特殊类型操作
+** Decimal
+#+BEGIN_SRC python
+from decimal import Decimal
+Decimal('1.32343').quantize(Decimal('0.00')
+#+END_SRC
+
+需要 Decimal 进行转换, 这可能是 sqlalchemy 把 Decimal 类型全大写的原因
+
+* Subquery, Query
+Subquery 可以通过 .c 获取子查询的字段, Query 不行
+Subquery 准确地说应该是相关子查询
+不相关子查询不要加 .subquery(), 否则会有 warning
+https://www.zhihu.com/question/386869708/answer/1296848332
+
+#+BEGIN_SRC python
+s1_learned = (session
+              .query(func.group_concat(SC.c_id))
+              .filter(SC.s_id == 1)
+              .scalar())
+query = (session
+         .query(SC.s_id)
+         .filter(SC.s_id != 1)
+         .group_by(SC.s_id)
+         .having(func.group_concat(SC.c_id) == s1_learned)
+         #.subquery()
+)
+res = (session
+       .query(Student)
+       .filter(Student.s_id.in_(query))
+       .all())
+#+END_SRC
+NOTE: 不相关子查询不要加 subquery, 否则会多一层, 可以取消注释看最终执行的 sql (echo=True)
+
+* TODO
+** aliased (貌似没什么大用)
+** relation (貌似没什么大用, 手动写连接语句)
+** 如何快速建表结构相同的表
+** 分库分表
+** unit of work pattern
+** 读写分离 (分片 session)
+
+** 经典50题
+*** p14/17, count 是不是重复计算, 如何解决
+
+临时变量能不能用, 如果可以分布式计算(或者异步async)的话, 能不能用
+
+*** p26, sqlalchemy 中的 having 貌似不支持使用 alias
+https://stackoverflow.com/questions/24523818/using-labels-in-having-clause-in-sqlalchemy
+
+*** p42 `interval some time_unit`
+还是用 text 最简单, (要防注入也很简单, 数字 + 枚举不可能注入)
+https://stackoverflow.com/questions/15572292/using-dateadd-in-sqlalchemy
