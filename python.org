@@ -942,6 +942,7 @@ import pdb; pdb.set_trace()
 
 ** __set_name__
 https://docs.python.org/3/howto/descriptor.html#customized-names
+
 ** unittest, doctest
 #+BEGIN_SRC python
 import unittest
@@ -954,6 +955,7 @@ import unittest
 import doctest
 doctest.testmod()
 #+END_SRC
+
 ** pydantic
 #+BEGIN_SRC python
 from typing import Optional
@@ -1073,3 +1075,76 @@ https://pydantic-docs.helpmanual.io/usage/models/#orm-mode-aka-arbitrary-class-i
 
 *** 其他
 .dict(), .copy(), .deepcopy()
+** type hint
+*** where to use
+just like rust's type
+
+name: SomeType
+-> ReturnedType
+class GenericClass(BaseType) # as baseclass to define a generic class
+
+*** basic
+#+BEGIN_SRC python
+from typing import List, Tuple, Union, Any
+
+str, int
+
+Vector = list[float] # type alias
+from typing import NewType
+UserId = NewType('UserId', int)
+# The static type checker will treat the new type as if it were a subclass of the original type
+#+END_SRC
+
+*** TypeVar
+#+BEGIN_SRC python
+T = TypeVar('T')  # Can be anything
+A = TypeVar('A', str, bytes)  # Must be str or bytes
+B = TypeVar('B', bound=A)  # Must be A or any subclass of A
+#+END_SRC
+
+https://stackoverflow.com/questions/66146376/using-python-typings-typevar-for-generically-typed-returns-with-bound
+#+BEGIN_SRC python
+from typing import Dict, List, Type, TypeVar
+
+class Bird:
+    def call(self):
+        print(self.sound)
+
+class Chicken(Bird):
+    def __init__(self):
+        self.sound = "bok bok"
+
+class Owl(Bird):
+    def __init__(self):
+        self.sound = "hoot hoot"
+
+T = TypeVar("T", bound=Bird)
+
+class Instantiator:
+    def __init__(self, birds: List[Type[T]]): # NOTE:
+        self._bird_map: Dict[Type[T], T] = {}
+        for bird in birds:
+            self._bird_map[bird] = bird()
+
+    def get_bird(self, bird_type: Type[T]) -> T:
+        return self._bird_map[bird_type]
+#+END_SRC
+*** Generic
+https://docs.python.org/3/library/typing.html#generics
+
+#+BEGIN_SRC python
+from typing import Generic, TypeVar
+
+T1 = TypeVar("T1")
+T1 = TypeVar("T2")
+
+class CustomGenericClass(Generic[T1, T2]):
+    pass
+
+# now we can use CustomGenericClass[int, str] as a type (in the place need type hint)
+
+#+END_SRC
+
+*** Union
+Generic 是同一种类型(运行时确定), 只是这种类型可以不同
+Union 可以是不同的类型
