@@ -1142,6 +1142,7 @@ class CustomGenericClass(Generic[T1, T2]):
     pass
 
 # now we can use CustomGenericClass[int, str] as a type (in the place need type hint)
+# NOTE: Each type variable argument to Generic must be distinct: CustomGenericClass[int, int] is invalid
 
 #+END_SRC
 
