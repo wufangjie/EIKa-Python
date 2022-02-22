@@ -1,19 +1,8 @@
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String, Date, SmallInteger, DECIMAL
-from base import make_repr
-from sqlalchemy.ext.declarative import as_declarative, declared_attr
+from base import Base
 
 # Base = declarative_base() # declarative base class
-
-@as_declarative()
-class Base:
-    # id: Any # for Base crud method
-    __name__: str # for __tablename__ classmethod
-    # Generate __tablename__ automatically
-    @declared_attr
-    def __tablename__(cls) -> str:
-        return cls.__name__.lower()
-
 
 
 class Student(Base):
@@ -24,9 +13,9 @@ class Student(Base):
     s_birth = Column(Date, comment="生日")
     s_sex = Column(String(1), default="男") # actually char(1)
 
-    def __repr__(self):
-        return make_repr(
-            self, ["s_id", "s_name", "s_birth", "s_sex"], one_row=False)
+    # def __repr__(self):
+    #     return make_repr(
+    #         self, ["s_id", "s_name", "s_birth", "s_sex"], one_row=False)
 
 class Course(Base):
     #__tablename__ = 'course'
@@ -35,8 +24,8 @@ class Course(Base):
     c_name = Column(String(10))
     t_id = Column(Integer) # actually char(1)
 
-    def __repr__(self):
-        return make_repr(self, ["c_id", "c_name", "t_id"])
+    # def __repr__(self):
+    #     return make_repr(self, ["c_id", "c_name", "t_id"])
 
 class Teacher(Base):
     #__tablename__ = 'teacher'
@@ -44,8 +33,8 @@ class Teacher(Base):
     t_id = Column(Integer, primary_key=True, autoincrement=True)
     t_name = Column(String(10))
 
-    def __repr__(self):
-        return make_repr(self, ["t_id", "t_name"])
+    # def __repr__(self):
+    #     return make_repr(self, ["t_id", "t_name"])
 
 class SC(Base):
     #__tablename__ = 'sc'
@@ -54,8 +43,8 @@ class SC(Base):
     c_id = Column(SmallInteger, primary_key=True)
     score = Column(DECIMAL(4, 1))
 
-    def __repr__(self):
-        return make_repr(self, ["s_id", "c_id", "score"])
+    # def __repr__(self):
+    #     return make_repr(self, ["s_id", "c_id", "score"])
 
 def make_record(col_name, row_list):
     return [dict(zip(col_name, lst)) for lst in row_list]
@@ -136,7 +125,7 @@ if __name__ == "__main__":
 
     #with get_session() as session:
     session = get_session()
-    session.add_all(student_lst + course_lst + teacher_lst + sc_lst)
+    session.add_all(student_lst + course_lst + teacher_lst + sc_lst) # noqa
     session.commit()
 
     # NOTE: student_lst 是绑定到 session 的, 用 with 提交的之后就不能查看了
