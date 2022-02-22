@@ -1007,6 +1007,7 @@ if __name__ == "__main__":
             "publisher": "人民文学出版社",
             "price": 59.70,
             "isbn_13": "9787020002207", # modify it
+	    "extra_field": "whatever, but you can not find me in schema"
         },
         {
             "title": "三国演义",
