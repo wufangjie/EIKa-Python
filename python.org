@@ -1066,5 +1066,10 @@ max_length
 allow_mutation
 regex
 
+*** orm_mode
+https://pydantic-docs.helpmanual.io/usage/models/#orm-mode-aka-arbitrary-class-instances
++ The Config property orm_mode must be set to True.
++ The special constructor from_orm must be used to create the model instance.
+
 *** 其他
 .dict(), .copy(), .deepcopy()
