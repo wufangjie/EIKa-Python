@@ -1,8 +1,12 @@
+from sqlalchemy import exists, and_, or_, not_, distinct, desc, tuple_
+from sqlalchemy import func, over, text#, funcfilter
+
+
 def p01(session):
-    subquery = session\
-        .query(SC)\
-        .filter(SC.c_id == 2)\
-        .subquery()
+    subquery = (session
+                .query(SC)
+                .filter(SC.c_id == 2)
+                .subquery())
     res = (session
            .query(Student, SC.score, subquery.c.score)
            .filter(SC.c_id == 1)

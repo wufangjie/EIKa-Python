@@ -1,11 +1,23 @@
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import Column, Integer, String, Date, SmallInteger, DECIMAL
 from base import make_repr
+from sqlalchemy.ext.declarative import as_declarative, declared_attr
 
-Base = declarative_base() # declarative base class
+# Base = declarative_base() # declarative base class
+
+@as_declarative()
+class Base:
+    # id: Any # for Base crud method
+    __name__: str # for __tablename__ classmethod
+    # Generate __tablename__ automatically
+    @declared_attr
+    def __tablename__(cls) -> str:
+        return cls.__name__.lower()
+
+
 
 class Student(Base):
-    __tablename__ = 'student'
+    #__tablename__ = 'student'
 
     s_id = Column(Integer, primary_key=True, autoincrement=True)
     s_name = Column(String(10), nullable=False, comment="姓名")
@@ -17,7 +29,7 @@ class Student(Base):
             self, ["s_id", "s_name", "s_birth", "s_sex"], one_row=False)
 
 class Course(Base):
-    __tablename__ = 'course'
+    #__tablename__ = 'course'
 
     c_id = Column(SmallInteger, primary_key=True, autoincrement=True)
     c_name = Column(String(10))
@@ -27,7 +39,7 @@ class Course(Base):
         return make_repr(self, ["c_id", "c_name", "t_id"])
 
 class Teacher(Base):
-    __tablename__ = 'teacher'
+    #__tablename__ = 'teacher'
 
     t_id = Column(Integer, primary_key=True, autoincrement=True)
     t_name = Column(String(10))
@@ -36,7 +48,7 @@ class Teacher(Base):
         return make_repr(self, ["t_id", "t_name"])
 
 class SC(Base):
-    __tablename__ = 'sc'
+    #__tablename__ = 'sc'
 
     s_id = Column(Integer, primary_key=True)
     c_id = Column(SmallInteger, primary_key=True)

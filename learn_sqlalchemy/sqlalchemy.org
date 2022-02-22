@@ -15,6 +15,18 @@ from sqlalchemy.orm import declarative_base
 Base = declarative_base() # 所有的表都要继承这个类
 #+END_SRC
 
+#+BEGIN_SRC python
+from sqlalchemy.ext.declarative import as_declarative, declared_attr
+
+@as_declarative()
+class Base:
+    __name__: str
+    # Generate __tablename__ automatically
+    @declared_attr
+    def __tablename__(cls) -> str:
+        return cls.__name__.lower()
+#+END_SRC
+
 ** engine
 #+BEGIN_SRC python
 engine = create_engine(config_str, echo=True) # 会打印真正执行的 sql 语句
@@ -201,6 +213,8 @@ res = (session
        .join(Student, SC.s_id == Student.s_id)
        .all())
 #+END_SRC
+
+NOTE: 右连接就反过来
 
 * group_by, having, order_by
 https://stackoverflow.com/questions/15362149/how-use-alias-in-sqlachemy
