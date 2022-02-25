@@ -957,6 +957,7 @@ doctest.testmod()
 #+END_SRC
 
 ** pydantic
+*** two kinds of validtors
 #+BEGIN_SRC python
 from typing import Optional
 from pydantic import BaseModel, validator, root_validator, ValidationError
@@ -1024,8 +1025,6 @@ if __name__ == "__main__":
         books = [Book(**book) for book in test_books]
     except ValidationError as e:
         print(e.json())
-
-
 #+END_SRC
 
 https://pydantic-docs.helpmanual.io/usage/validators/
@@ -1057,17 +1056,21 @@ class Config: # 内部类?
 顺序很重要
 
 *** Field customization
-title
-description
-alias
-gt
-lt
-ge
-le
-min_length
-max_length
-allow_mutation
-regex
+第一个参数(也是唯一的 postional argument)如果为 ... 表示 required, 否则为默认值
+
+一些常用的 keyword arguments (做一些简单的描述和验证):
+| title          |
+| description    |
+| alias          |
+| allow_mutation |
+|----------------|
+| gt             |
+| lt             |
+| ge             |
+| le             |
+| min_length     |
+| max_length     |
+| regex          |
 
 *** orm_mode
 https://pydantic-docs.helpmanual.io/usage/models/#orm-mode-aka-arbitrary-class-instances
