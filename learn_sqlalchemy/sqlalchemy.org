@@ -340,8 +340,15 @@ res = (session
 #+END_SRC
 NOTE: 不相关子查询不要加 subquery, 否则会多一层, 可以取消注释看最终执行的 sql (echo=True)
 
+* aliased (可用于同名表 join)
+#+BEGIN_SRC python
+from sqlalchemy.orm import aliased
+
+user1 = aliased(UserInfo)
+user2 = aliased(UserInfo)
+#+END_SRC
+
 * TODO
-** aliased (貌似没什么大用)
 ** relation (貌似没什么大用, 手动写连接语句)
 ** 如何快速建表结构相同的表
 ** 分库分表
