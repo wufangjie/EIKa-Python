@@ -810,7 +810,22 @@ obj.test() # hello super changed <class '__main__.B'>
 |          | __file__          | 非对象                          |
 |          | __name__          |                                 |
 
+** __new__ 和单例模式
 __new__() is a static method (special-cased so you need not declare it as such) that takes the class of which an instance was requested as its first argument.
+
+#+BEGIN_SRC python
+class SingletonPattern:
+    def __new__(cls, *args, **kwargs):
+        print("calling __new__")
+        if not hasattr(cls, "_instance"):
+            cls._instance = super().__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def __init__(self, *args, **kwargs):
+        print("calling __init__")
+
+print(SingletonPattern() is SingletonPattern())
+#+END_SRC
 
 * logging
 ** basicConfig
