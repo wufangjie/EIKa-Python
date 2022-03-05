@@ -1,0 +1,99 @@
+* pre
+#+BEGIN_SRC python
+import numpy as np
+import pandas as pd
+#+END_SRC
+
+* basic data type
+#+BEGIN_SRC python
+a = pd.Series([1, 2, 3, np.nan, 8])
+b = pd.date_range("2022-03-03", periods=6) # "20220303" is ok too
+print(type(b))
+
+c = np.Series(np.arange("2022-03-01", "2022-03-06", dtype='<M8[D]'))
+d = pd.DataFrame(np.random.randn(5, 4), index=b) # rand
+#+END_SRC
+
+* basic
+index
+columns
+dtypes
+T
+
+head()
+tail()
+describe()
+
+* sort
+#+BEGIN_SRC python
+sort_index # by column names (axis=1) or index value (axis=0 default)
+sort_values # by str(column) or list of str(columns)
+#+END_SRC
+
+* iloc, iat
+loc, at
+
+* getting
+#+BEGIN_SRC python
+df["A"]
+df[0:3]
+df["20130102":"20130104"]
+#+END_SRC
+
+* reset_index vs reindex
+#+BEGIN_SRC python
+df.reindex(index=None, columns=None) # new index or columns
+
+df2 = df.sort_values(by=1)
+df2.reset_index(inplace=True) # correct order in order to indexing or slicing
+#+END_SRC
+
+* numpy datetime
+# np.random.rand, np.random.randn
+
+YYYY-MM-DD hh:mm:ss.000000
+Y, M, D, h, m, s, ms, ns
+
+* apply(axis=0, raw=False)
+axis=0 means apply function to each column
+
+#+BEGIN_SRC python
+import time
+tic = time.time()
+df.apply(np.sum, raw=False)
+print(time.time() - tic)
+
+tic = time.time()
+df.apply(np.sum, raw=True)
+print(time.time() - tic)
+#+END_SRC
+
+raw = True
+If you are just applying a NumPy reduction function this will achieve much better performance.
+
+* drop(labels=None, axis=0, index=None, columns=None)
++ axis only works when labels is not None
++ columns (single label or list-like)
++ index (single label or list-like)
++ inplace (False return a copy, True do operation inplace and return None)
+
+* concat, merge (just like database join), groupby
+
+* stack, unstack
+大概是把列名编程行名(多个), 行名变成列名
+https://pandas.pydata.org/docs/user_guide/10min.html#stack
+
+* pivot_table
+https://pandas.pydata.org/docs/user_guide/10min.html#pivot-tables
+
+* csv, excel
+#+BEGIN_SRC python
+to_csv
+read_csv
+
+to_hdf
+read_hdf
+
+to_excel
+read_excel
+#+END_SRC
