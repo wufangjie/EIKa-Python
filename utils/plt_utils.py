@@ -5,6 +5,18 @@ import matplotlib.pyplot as plt
 __all__ = ['ColorCycler', 'plt', 'set_plt_theme']
 
 
+def cv2_imshow(winname, mat, is_rgb=False):
+    """imshow(winname, mat) -> None"""
+    plt.figure(winname, figsize=(5, 8))
+    if len(mat.shape) < 3 or mat.shape[2] == 1:
+        plt.imshow(mat, cmap='gray')
+    elif is_rgb:
+        plt.imshow(np.asarray(mat))
+    else:
+        plt.imshow(np.asarray(mat)[..., 2::-1])
+    plt.axis('image') # tight, equal
+
+
 class ColorCycler:
     def __init__(self, kind='seaborn'):
         if kind == 'mpl':
