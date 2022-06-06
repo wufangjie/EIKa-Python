@@ -1171,3 +1171,104 @@ class CustomGenericClass(Generic[T1, T2]):
 *** Union
 Generic 是同一种类型(运行时确定), 只是这种类型可以不同
 Union 可以是不同的类型
+
+* pyenv (用 PATH 的顺序，来改变 python 的默认版本)
+#+begin_src sh
+	  pyenv install --list
+	pyenv install 3.10.2
+	pyenv shell 3.10.2
+	pyenv global 3.10.2
+	pyenv versions
+	pyenv version
+	pyenv init
+	eval "$(pyenv init -)"
+	pyenv init -
+	pyenv help
+	pyenv shell 3.10.2
+	pyenv init
+	$PYENV_ROOT
+	$PATH
+	eval "$(pyenv init -)"
+	pyenv init -
+	pyenv shell 3.10.2
+	pyenv init
+	pyenv README
+	pyenv help README
+	pyenv versions
+	pyenv shell 3.10.2
+	pyenv help shell
+	$PYENV_VERSION
+	setenv PYENV_VERSION 3.10.2
+	pyenv versions
+	setenv PYENV_VERSION
+	echo $PYENV_VERSION
+	setenv PYENV_VERSION 3.10.2
+	echo $PYENV_VERSION
+	pyenv root
+	pyenv versions
+	pyenv versions --bare
+
+	pyenv-version
+	pyenv-versions
+	pyenv install --list
+	pyenv install --list mini*
+	pyenv uninstall 3.10.2
+      pyenv install --list
+      pyenv install 3.10.2 --with-universal-archs
+      pyenv-versions
+      v=3.10.2; curl -L https://npm.taobao.org/mirrors/python/$v/Python-$v.tar.xz -o ~/.pyenv/cache/Python-$v.tar.xz;
+      pyenv update # update pyenv
+      pyenv uninstall 3.10.2
+    pyenv install --list
+    PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.10.2
+    python -m pip install -e detectron2
+  pyenv install --list
+  pyenv install --list
+pyenv install 3.8.12
+
+#+end_src
+
+#+begin_src sh
+  brew config
+  brew search python
+  brew install pyenv
+  brew update
+  brew config
+  brew install pyqt
+  brew install pyqt@5
+  brew config
+  brew uninstall v2rayu
+  brew install --cask v2rayu
+  brew uninstall pyqt
+  brew install py3cairo
+  brew install pygobject3
+  brew install --cask ukelele
+  brew upgrade pyenv
+
+  sudo rm -rf /opt/homebrew/etc/v2ray/config.json
+  sudo rm -rf /opt/homebrew/etc/v2ray/
+  export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.bfsu.edu.cn/git/homebrew/brew.git"
+  export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.bfsu.edu.cn/git/homebrew/homebrew-core.git"for tap in core cask{,-fonts,-drivers,-versions} command-not-found; do    brew tap --custom-remote --force-auto-update "homebrew/${tap}" "https://mirrors.bfsu.edu.cn/git/homebrew/homebrew-${tap}.git"
+#+end_src
+
+#+begin_src sh
+  pip3 install numpy
+  pip3 install scipy
+  pip3 install matplotlib
+  pip3 install -U scikit-learn
+  pip3 install torch torchvision
+
+  pip3 install seaborn
+  pip3 install pandas
+  pip3 install -U pip
+  pip3 install ipython
+  pip3 install opencv-python
+  pip3 install pycocotools
+#+end_src
+
+* os.path encoding
+os.path 是可以用 bytes 参数的, 这对于解决 windows, linux 文件名编码不同非常有用
+
+#+begin_src python
+os.path.exists(os.path.join(some_root.encode('utf-8'), some_path.encode('gbk')))
+#+end_src
