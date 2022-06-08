@@ -1,8 +1,8 @@
-import numpy as np
 from collections import deque, defaultdict
 import heapq
 from copy import deepcopy
 import itertools
+import numpy as np
 from utils import memo
 
 
@@ -11,10 +11,8 @@ class Graph():
         """NOTE: Always make sure every vertex in G.keys()"""
         self.G = {} if G is None else G
         if weighted is None:
-            if self.G and isinstance(next(iter(self.G.values())), dict):
-                weighted = True
-            else:
-                weighted = False
+            weighted = (bool(self.G)
+                        and isinstance(next(iter(self.G.values())), dict))
         self.weighted = weighted
         if guarantee_vertex:
             self.add_no_outdegree_vertex()
@@ -31,7 +29,7 @@ class Graph():
             for u, v, w in edges:
                 for x in (u, v):
                     if x not in G:
-                        G[x] = dict()
+                        G[x] = {}
                 G[u][v] = w
         else:
             weighted = False
@@ -95,27 +93,49 @@ class Graph():
                 visited.add(u)
                 stack.extend(self.G[u])
 
+
+#     def _get_dfs_rec_func(self, visited=None, mode='last'):
+#         if visited is None:
+#             visited = set()
+#         global_ns = locals()
+#         _dfs_rec_template = '''
+# def _dfs(u):
+#     if u not in visited:
+#         {}
+#         visited.add(u)
+#         for v in self.G[u]:
+#             yield from _dfs(v)
+#         {}
+#         '''
+#         args = ('', 'yield u') if mode == 'last' else ('yield u', '')
+#         src = _dfs_rec_template.format(*args)
+#         code = compile(src, '<dummy_dfs_{}>'.format(mode), 'exec')
+#         exec(code, global_ns)
+#         return global_ns['_dfs']
+
     def _get_dfs_rec_func(self, visited=None, mode='last'):
         if visited is None:
             visited = set()
-        global_ns = locals()
-        _dfs_rec_template = '''
-def _dfs(u):
-    if u not in visited:
-        {}
-        visited.add(u)
-        for v in self.G[u]:
-            yield from _dfs(v)
-        {}
-        '''
-        args = ('', 'yield u') if mode == 'last' else ('yield u', '')
-        src = _dfs_rec_template.format(*args)
-        code = compile(src, '<dummy_dfs_{}>'.format(mode), 'exec')
-        exec(code, global_ns)
-        return global_ns['_dfs']
+        if mode == "first":
+            def _dfs_first(u):
+                if u not in visited:
+                    yield u
+                    visited.add(u)
+                    for v in self.G[u]:
+                        yield from _dfs_first(v)
+            return _dfs_first
 
-    def dfs_rec(self, s, visited=None):
-        return self._get_dfs_rec_func(visited, mode='first')(s)
+        def _dfs_last(u):
+            if u not in visited:
+                visited.add(u)
+                for v in self.G[u]:
+                    yield from _dfs_last(v)
+                yield u
+        return _dfs_last
+
+
+    def dfs_rec(self, s, visited=None, mode="first"):
+        return self._get_dfs_rec_func(visited, mode)(s)
 
     def iddfs(self, s, visited=None):
         """Iterative Deepening Depth-First Search
@@ -237,7 +257,7 @@ def _dfs(u):
         for u in self.tsort():
             if u == t:
                 break
-            elif u == s:
+            if u == s:
                 skip = False
             if not skip:
                 for v, w in self.G[u].items():
@@ -249,6 +269,7 @@ def _dfs(u):
         if d < D[v]:
             D[v], P[v] = d, u
             return True
+        return False
 
     def bellman_ford(self, s):
         """
@@ -647,7 +668,7 @@ if __name__ == '__main__':
     g2 = Graph({'a': {'b': 4, 'h': 8},
                 'b': {'c': 8, 'h': 11},
                 'c': {'d': 7, 'f': 4, 'i': 2},
-                'd': {'e': 9, 'f': -14},
+                'd': {'e': 9, 'f': 14},
                 'e': {'f': 10},
                 'f': {'g': 2},
                 'g': {'h': 1, 'i': 6},
