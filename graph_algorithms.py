@@ -579,9 +579,11 @@ class Graph():
         return result
 
     def max_flow(self, s, t):
-        """Ford-Fulkerson method
+        """
+        Ford-Fulkerson method
+        this implement use bfs to find augmenting, i.e. edmonds-karp algorithm
+        what if we use heap based greedy search to increase weight per round, will it accelerate?
 
-        this implement use bfs to find augmenting, ie edmonds-karp algorithm
         I do not use residual network
         """
         matched = {u: defaultdict(float) for u in self.G}
@@ -594,12 +596,12 @@ class Graph():
                     return path, w
                 for v in itertools.chain(self.G[u], matched[u]):
                     if v not in path:
-                        w2 = (matched[u][v] if matched[u][v] > 0
-                              else self.G[u].get(v, 0) - matched[v][u])
+                        w2 = (matched[u][v] if matched[u][v] > 0 # cancel
+                              else self.G[u].get(v, 0) - matched[v][u]) # residual
                         if w2 > 0:
                             path[v] = u
                             Q.append((v, min(w, w2)))
-            return {}, 0
+            return path, 0
 
         def augment(path, w):
             _from = t
@@ -616,7 +618,6 @@ class Graph():
                 return {k: {v: w for v, w in vs.items() if w > 0}
                         for k, vs in matched.items()}
             augment(path, w)
-
 
 
 
@@ -829,3 +830,9 @@ if __name__ == '__main__':
 # O(log(n!)) = O(2 * log(n!)) = O(log(n! * n!)) >= O(nlog(n))
 # 最后一个不等号成立, 因为
 # (n + 1 - i) * i >= n (i = 1, 2, ..., n) 不等号成立的条件为 n >= i, 显然
+
+# 最小割的定义见 clrs (cut, flow, capacity)
+
+# 最大流 可以按增广路的权重大小, 做 heap based greedy search, 减少收敛时间?
+
+# 最小费用最大流, 可以用贪心算法实现, 每次找最短路 (可以用 bellman ford, 也可以用 dijkstra (有负权, 要做 johnson 相同的操作, 如果只有开始做一次, 那么 a->b->c->a, 就会存在负环 (但实际过程中不会出现负环); 如果每次都做, 那为什么不只用 bellman ford))
