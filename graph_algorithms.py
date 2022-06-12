@@ -372,12 +372,12 @@ class Graph():
 
     def a_star(self, s, t, h):
         P = {}
-        for d, u, v in self._greedy_search(s, 'A*', t, h):
+        d, u = float('inf'), s # init value
+        for d, u, v in self._greedy_search(s, mode='A*', t=t, h=h):
             P[u] = v
         if u == t:
             return d - h(t), P
-        else:
-            return float('inf'), P
+        return d, P
 
     # def dijkstra(self, s):
     #     """CLRS. Not recommend, since a C complemetion may be take in heapq"""
@@ -462,6 +462,21 @@ class Graph():
         return matched
 
     def edge_disjoint_paths(self, s, t):
+        """
+        you can the count of disjoint paths: len(matched[t])
+
+        you can get one possible group of paths:
+
+        paths = [[t, p] for p in matched[t]]
+        for path in paths:
+            while path[-1] != s:
+                path.append(matched[path[-1]].pop())
+        for path in paths:
+            print(*path[::-1], sep=' -> ')
+
+        NOTE: get all possible groups of paths is hard, since the augmenting path
+        can only find one more path (not all equivalence paths)
+        """
         matched = defaultdict(set)
         def find_augmenting_path():
             path = {}
@@ -493,7 +508,55 @@ class Graph():
                 return matched
 
     def vertex_disjoint_paths(self, s, t):
-        """Program directly is hard"""
+        matched = {}
+        matched[t] = []
+        def find_augmenting_path():
+            path = {}
+            Q = deque([s])
+            while Q:
+                u = Q.popleft()
+                if u == t:
+                    return path
+                if u in matched:
+                    v = matched[u] # cancel
+                    if matched.get(path[u]) != v:
+                        if v not in path:
+                            path[v] = u
+                            Q.append(v)
+                        continue
+                for v in self.G[u]: # forward
+                    if v not in path:
+                        path[v] = u
+                        Q.append(v)
+            return {}
+
+        def augment(path):
+            _from = t
+            while _from != s:
+                _to, _from = _from, path[_from]
+                if _to == t:
+                    matched[t].append(_from)
+                elif _to in matched:
+                    assert matched[_to] == _from
+                    matched.pop(_to)
+                else:
+                    matched[_to] = _from
+
+        while True:
+            path = find_augmenting_path()
+            if path:
+                augment(path)
+            else:
+                return matched
+
+    def vertex_disjoint_paths_deprecated(self, s, t):
+        """
+        deprecated
+        through edge disjoint paths i.e. split vertex,
+        the idea is good, but not efficient
+
+        Program directly is hard (actually It's not hard)
+        """
         _new = object()
         G_new = {}
         for k, vs in self.G.items():
@@ -750,6 +813,8 @@ if __name__ == '__main__':
     ff(g6.bipartite_match(), False)
     ff(g7.edge_disjoint_paths('s', 't'), False)
     ff(g7.vertex_disjoint_paths('s', 't'), False)
+    ff(g7.vertex_disjoint_paths_deprecated('s', 't'), False)
+
     ff(g8.max_flow('s', 't'), False)
 
 
