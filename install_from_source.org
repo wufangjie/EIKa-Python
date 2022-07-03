@@ -1,0 +1,36 @@
+* python
+modify /Module/Setup
+
+uncomment zlib (one row) ssl (two row)
+
+install:
+#+begin_src sh
+zlib-devel
+openssl-devel
+libffi-devel
+libbz2-devel # no module named "_bz2"
+xz-devel # no module named "_lzma"
+#+end_src
+
+#+begin_src sh
+./configure
+make
+make install
+#+end_src
+
+* emacs
+ncurse-devel
+#+begin_src sh
+./configure --without-x --with-gnutls=no --with-x-toolkit=no
+make
+make install
+#+end_src
+
+* fastapi
+#+begin_src sh
+pip3 install fastapi
+pip3 install "uvicorn[standard]"
+pip3 install python-multipart
+
+nohup python3 -u /data/app/main.py >> /data/app/log.org 2>&1 &
+#+end_src
