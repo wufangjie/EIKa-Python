@@ -295,6 +295,7 @@ class Graph():
 
     def bellman_ford_improved(self, s):
         """
+        NOTE: I can not prove it is right (deprecated, see spfa algorithm)
         stack or queue?
 
         suppose edge (i, j) exist for any i < j.
@@ -519,11 +520,15 @@ class Graph():
                     return path
                 if u in matched:
                     v = matched[u] # cancel
-                    if matched.get(path[u]) != v:
-                        if v not in path:
-                            path[v] = u
-                            Q.append(v)
+                    path[v] = u
+                    Q.append(v)
+                    if matched.get(path[u]) != u:
                         continue
+                    # if matched.get(path[u]) != v:
+                    #     if v not in path:
+                    #         path[v] = u
+                    #         Q.append(v)
+                    #     continue
                 for v in self.G[u]: # forward
                     if v not in path:
                         path[v] = u
@@ -758,12 +763,19 @@ if __name__ == '__main__':
                 'd': {'h'}})
 
 
-    g6 = Graph({'x1': {'y1', 'y4', 'y5'},
-                'x2': {'y4', 'y6'},
-                'x3': {'y1', 'y3'},
-                'x4': {'y2'},
-                'x5': {'y3'},
-                'x6': {'y1', 'y3'}})
+    # g6 = Graph({'x1': {'y1', 'y4', 'y5'},
+    #             'x2': {'y4', 'y6'},
+    #             'x3': {'y1', 'y3'},
+    #             'x4': {'y2'},
+    #             'x5': {'y3'},
+    #             'x6': {'y1', 'y3'}})
+
+    g6 = Graph({'x1': {'y1', 'y4'},
+                'x2': {'y1', 'y2', 'y5'},
+                'x3': {'y2', 'y3', 'y6'},
+                'x4': {'y3'},
+                'x5': {'y6'},
+                'x6': {'y5'}})
 
 
     g7 = Graph({'s': {'a', 'c', 'e'},
