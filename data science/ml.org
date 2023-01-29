@@ -52,15 +52,34 @@ Adjusted R2: 1 - (1 - R2) * (n - 1) / (n - p - 1), n 是特征的个数 (一种�
 
 * 信息论 (TODO)
 ** 信息熵 (entropy of an information source)
-其最大值的证明, 用 jensen 不等式是不对的, 应用 k 因子法, 即在加上一项 k(\Simga{}p_{i} - 1), 然后求对 p_{i} 无限制的整个式子的极大值, 显然对每个 p_{i} 要求 k 的值是一样的, 同时我们另 k 等于正好使得在取得该极值时的 \Simga{}p_{i} = 1 即可. 这个方法也称为拉格朗日乘子法, 其实我理解的是对于一般的问题加了这一项也未必能算出极值(注: 很多 EM 算法会用到这个)
+其最大值的证明, 用 jensen 不等式是不对的, 应用 k 因子法, 即在加上一项 k(\Simga{}p_{i} - 1), 然后求对 p_{i} 无限制的整个式子的极大值, 显然对每个 p_{i} 要求 k 的值是一样的, 同时我们令 k 等于正好使得在取得该极值时的 \Simga{}p_{i} = 1 即可. 这个方法也称为拉格朗日乘子法, 其实我理解的是对于一般的问题加了这一项也未必能算出极值(注: 很多 EM 算法会用到这个)
 
-H(p) = -\Simga_{x} p(x) * log(p(x))
+H(p) = -\Simga_{x} p(x) * log(p(x)) # NOTE: 信息论的 log 都是指 log2, 其实是其他也无所谓, 就是差一个常数
+
+针对的是一个分布，该分布越混乱（均匀），信息熵越大
 
 ** 联合熵 (joint entropy)
-H(X, Y) = - \Simga_{x} \Simga_{y} p(x, y) * log(p(x, y))
+H(X, Y) = -\Simga_{x} \Simga_{y} p(x, y) * log(p(x, y))
 
 ** 条件熵 (conditional entropy)
+H(X|Y) = -\Sigma_{y} p(y) * H(X|Y = y) = -\Sigma_{y} \Sigma_{y} p(y) * p(x|y) * log(p(x|y)) = -\Sigma_{y} \Sigma_{y} p(x, y) * log(p(x|y))
+
 ** 互信息 (mutual information)
+I(X, Y) = \Simga_{x} \Simga_{y} p(x, y) * log(p(x, y) / p(x) / p(y))
+
+** 上述几个的关系
+*** 可以把 H(X), H(Y) 可以看成两个任意集合
+*** 集合的交就是互信息 I(X, Y)
+I(X, Y) = \Simga_{x} \Simga_{y} p(x, y) * log(p(x|y) / p(x)) = \Simga_{x} \Simga_{y} * (log(p(x|y)) - log(p(x))) = -H(X|Y) + H(X)
+
+*** 集合的并就是联合熵
+因为不能直接做集合的并, 所以只能先化成不相交的两部分再相加
+H(X, Y) = -\Simga_{x} \Simga_{y} p(x, y) * log(p(x, y)) = -\Simga_{x} \Simga_{y} p(x, y) * log(p(y) * p(x|y)) = H(X) + H(X|Y)
+
+*** 集合的差就是条件熵
+因为不能直接做集合的差, 所以只能先化成有包含关系的两部分再相减 (互信息)
+H(X|Y) = -\Sigma_{y} \Sigma_{y} p(x, y) * log(p(x|y) * p(y) / p(y)) = H(X, Y) - H(Y)
+
 ** KL散度 (Kullback-Leibler divergence)
 非对称, 可以改进为 (D_{KL}(p||q) + D_{KL}(q||p)) / 2
 
