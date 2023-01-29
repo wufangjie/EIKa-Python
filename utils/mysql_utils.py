@@ -25,6 +25,8 @@ class ConnectMysqlGetCursor:
         for k, v in config.get(default_config, {}).items():
             if not self.params[k]:
                 self.params[k] = v
+        self.conn = None
+        self.cursor = None
 
     def __enter__(self):
         self.conn = mysql.connector.connect(**self.params)
@@ -32,8 +34,10 @@ class ConnectMysqlGetCursor:
         return self.cursor
 
     def __exit__(self, *args):
-        self.cursor.close()
-        self.conn.close()
+        if self.cursor is not None:
+            self.cursor.close()
+        if self.conn is not None:
+            self.conn.close()
 
 
 def iter_buf_to_numpy(cur, buf_size=50000, dtype=None, output=True):
