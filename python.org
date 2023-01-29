@@ -1272,3 +1272,12 @@ os.path 是可以用 bytes 参数的, 这对于解决 windows, linux 文件名�
 #+begin_src python
 os.path.exists(os.path.join(some_root.encode('utf-8'), some_path.encode('gbk')))
 #+end_src
+
+* async requests
+#+begin_src python
+import aiohttp
+
+async with aiohttp.ClientSession() as client:
+    resp = await client.post(url) # just like requests
+    result = await resp.json()
+#+end_src
