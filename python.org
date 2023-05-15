@@ -876,6 +876,16 @@ logger.setLevel(logging.INFO) # default is logging.WARNING
 # s_handler.setLevel(level); s_handler.addFilter(filter)
 #+END_SRC
 
+** uvicorn logging
+默认的访问日志不记录时间, 最简单和没关的修改方式
+#+begin_src python
+from uvicorn.config import LOGGING_CONFIG
+LOGGING_CONFIG["formatters"]["access"]["datefmt"] = "%Y-%m-%dT%H:%M:%S"
+LOGGING_CONFIG["formatters"]["access"]["fmt"] = " - ".join([
+    '%(levelprefix)s %(client_addr)s',
+    '"%(request_line)s" %(asctime)s %(status_code)s'])
+#+end_src
+
 * packages (一些文档里找不到或很难找到的 tricks)
 ** mysql-connector-python
 #+BEGIN_SRC python
