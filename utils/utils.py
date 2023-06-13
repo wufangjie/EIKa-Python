@@ -1,4 +1,4 @@
-#import sys
+# import sys
 import time
 import numpy as np
 import functools
@@ -15,7 +15,7 @@ __all__ = ['ProgressBar', 'memo',
 # 'memo_with_kwargs', 'sort_rows_rec', 'intersect_loop'
 
 
-############################## classes #################################
+# ============================ classes =================================
 class ProgressBar:
     def __init__(self, total=1, nchar=50, char='=', arrow='>',
                  template='|{}{}|[{: >3d}%]'):
@@ -89,9 +89,11 @@ class LoopUntil:
                 raise err
         return wrapper
 
-############################## decorators ##############################
-def memo(func): # sys.getsizeof(frozenset()) -> 224 bytes
+
+# ============================ decorators ==============================
+def memo(func):  # sys.getsizeof(frozenset()) -> 224 bytes
     cache = {}
+
     @functools.wraps(func)
     def wrapper(*args):
         if args not in cache:
@@ -103,6 +105,7 @@ def memo(func): # sys.getsizeof(frozenset()) -> 224 bytes
 
 def memo_with_kwargs(func):
     cache = {}
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         key = (args, frozenset(kwargs.items()))
@@ -127,7 +130,7 @@ def tail_recursion(func):
     return wrapper
 
 
-############################## functions ##############################
+# ============================ functions ==============================
 def get_rank(var, method='dense'):
     """Assign ranks to data, dealing with ties appropriately.
 
@@ -392,7 +395,6 @@ def unique_lazy(arr, data=None, func=None, **kwargs):
     return unique_func(arr[idx], data, func, mode='value', **kwargs)
 
 
-
 if __name__ == '__main__':
 
     @tail_recursion
@@ -404,7 +406,6 @@ if __name__ == '__main__':
 
     print(factor(10))
 
-
     def tail_recursion(func, *args, **kwargs):
         g = func(*args, **kwargs)
         while True:
@@ -414,4 +415,5 @@ if __name__ == '__main__':
                 g = ret
             else:
                 return ret
+
     # 这种做法可以超出最大限制, 但是速度并没有加快, 反而慢了
