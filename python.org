@@ -1291,3 +1291,17 @@ async with aiohttp.ClientSession() as client:
     resp = await client.post(url) # just like requests
     result = await resp.json()
 #+end_src
+
+* pip
+#+begin_src sh
+python -m pip install -U pip # python --version 对应的 pip, 并且能解决 windows pip 不能更新自己的问题
+pip install # pip --version
+#+end_src
+
+#+begin_src sh
+python -m ensurepip # 可以在误删除 pip 时找回来, 当然前提是在安装的时候勾上 pip
+#+end_src
+
+安装失败可能会在 site-packages 文件夹生成 ~ 开头的文件夹 (每次使用 pip 时会提示 invalid package), 直接删除即可
+
+--upgrad -U 不仅可以升级也可以降级 (包括它依赖的包也可能跟着被修改版本)
